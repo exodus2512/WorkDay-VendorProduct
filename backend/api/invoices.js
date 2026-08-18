@@ -8,18 +8,41 @@ export async function handleInvoices(req, pathSegments, queryParams) {
 
   if (method === 'GET') {
     if (id && id !== 'validate') {
-      const res = await query('SELECT * FROM invoices WHERE id = $1', [id]);
+      const res = await query(`
+        SELECT i.*, p.name AS project_name, p.client_name
+        FROM invoices i
+        LEFT JOIN projects p ON p.id = i.project_id
+        WHERE i.id = $1
+      `, [id]);
       if (res.rows.length === 0) return { status: 404, body: { error: 'Invoice not found' } };
-      return { status: 200, body: res.rows[0] };
+      const invoice = res.rows[0];
+      const itemsRes = await query('SELECT * FROM invoice_items WHERE invoice_id = $1', [id]);
+      invoice.items = itemsRes.rows;
+      return { status: 200, body: invoice };
     }
 
     const projId = queryParams.get('project_id');
-    let res = await query('SELECT * FROM invoices ORDER BY id DESC');
-    let rows = res.rows;
+    let res;
     if (projId) {
-      rows = rows.filter(inv => inv.project_id === parseInt(projId, 10));
+      res = await query(`
+        SELECT i.*, p.name AS project_name, p.client_name
+        FROM invoices i LEFT JOIN projects p ON p.id = i.project_id
+        WHERE i.project_id = $1 ORDER BY i.id DESC
+      `, [projId]);
+    } else {
+      res = await query(`
+        SELECT i.*, p.name AS project_name, p.client_name
+        FROM invoices i LEFT JOIN projects p ON p.id = i.project_id
+        ORDER BY i.id DESC
+      `);
     }
-    return { status: 200, body: rows };
+    // Attach items to each invoice
+    const invoices = res.rows;
+    for (const inv of invoices) {
+      const itemsRes = await query('SELECT * FROM invoice_items WHERE invoice_id = $1', [inv.id]);
+      inv.items = itemsRes.rows;
+    }
+    return { status: 200, body: invoices };
   }
 
   if (method === 'POST') {

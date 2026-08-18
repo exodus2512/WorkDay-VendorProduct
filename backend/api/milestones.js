@@ -6,8 +6,18 @@ export async function handleMilestones(req, pathSegments, queryParams) {
   const action = pathSegments[1]; // /api/milestones/:id/approve or reject
 
   if (method === 'GET') {
+    const milestoneSelect = `
+      SELECT m.*,
+        p.name AS project_name, p.client_name,
+        p.project_manager_id AS pm_id,
+        u.name AS submitted_by_name
+      FROM milestones m
+      LEFT JOIN projects p ON p.id = m.project_id
+      LEFT JOIN users u ON u.id = m.submitted_by
+    `;
+
     if (id && !action) {
-      const res = await query('SELECT * FROM milestones WHERE id = $1', [id]);
+      const res = await query(`${milestoneSelect} WHERE m.id = $1`, [id]);
       if (res.rows.length === 0) return { status: 404, body: { error: 'Milestone not found' } };
       return { status: 200, body: res.rows[0] };
     }
@@ -15,12 +25,14 @@ export async function handleMilestones(req, pathSegments, queryParams) {
     const projId = queryParams.get('project_id');
     const pmId = queryParams.get('pm_id');
 
-    let res = await query('SELECT * FROM milestones ORDER BY due_date ASC');
-    let rows = res.rows;
-
+    let res;
     if (projId) {
-      rows = rows.filter(m => m.project_id === parseInt(projId, 10));
+      res = await query(`${milestoneSelect} WHERE m.project_id = $1 ORDER BY m.due_date ASC`, [projId]);
+    } else {
+      res = await query(`${milestoneSelect} ORDER BY m.due_date ASC`);
     }
+
+    let rows = res.rows;
     if (pmId) {
       rows = rows.filter(m => m.pm_id === parseInt(pmId, 10));
     }

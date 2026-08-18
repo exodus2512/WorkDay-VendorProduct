@@ -108,9 +108,20 @@ export async function query(queryString, params = []) {
     try {
       // Execute query using Neon serverless sql client
       const results = await sql(queryString, params);
-      return { rows: results };
+
+      // Neon HTTP driver can return:
+      //   1. A plain array of row objects: [{...}, {...}]  → for SELECT
+      //   2. An object with a .rows property: { rows: [...], rowCount: N } → for INSERT/UPDATE with RETURNING
+      // Normalize both shapes into { rows: [] } for consistency.
+      if (Array.isArray(results)) {
+        return { rows: results };
+      } else if (results && Array.isArray(results.rows)) {
+        return { rows: results.rows };
+      } else {
+        return { rows: [] };
+      }
     } catch (err) {
-      console.warn('Neon query error, falling back to memory database store:', err.message);
+      console.error('Neon query error, falling back to memory database store:', err.message);
     }
   }
   return executeInMemoryQuery(queryString, params);

@@ -7,7 +7,18 @@ export async function handleTimesheets(req, pathSegments, queryParams) {
 
   if (method === 'GET') {
     if (id && !action) {
-      const res = await query('SELECT * FROM timesheets WHERE id = $1', [id]);
+      const res = await query(`
+        SELECT t.*,
+          p.id AS project_id, p.name AS project_name, p.client_name,
+          p.project_manager_id AS pm_id,
+          u.name AS employee_name,
+          a.billing_rate, a.weekly_hour_limit
+        FROM timesheets t
+        LEFT JOIN assignments a ON a.id = t.assignment_id
+        LEFT JOIN projects p ON p.id = a.project_id
+        LEFT JOIN users u ON u.id = t.employee_id
+        WHERE t.id = $1
+      `, [id]);
       if (res.rows.length === 0) return { status: 404, body: { error: 'Timesheet not found' } };
       return { status: 200, body: res.rows[0] };
     }
@@ -15,12 +26,26 @@ export async function handleTimesheets(req, pathSegments, queryParams) {
     const empId = queryParams.get('employee_id');
     const pmId = queryParams.get('pm_id');
 
-    let res = await query('SELECT * FROM timesheets ORDER BY id DESC');
-    let rows = res.rows;
+    let baseQuery = `
+      SELECT t.*,
+        p.id AS project_id, p.name AS project_name, p.client_name,
+        p.project_manager_id AS pm_id,
+        u.name AS employee_name,
+        a.billing_rate, a.weekly_hour_limit
+      FROM timesheets t
+      LEFT JOIN assignments a ON a.id = t.assignment_id
+      LEFT JOIN projects p ON p.id = a.project_id
+      LEFT JOIN users u ON u.id = t.employee_id
+    `;
 
+    let res;
     if (empId) {
-      rows = rows.filter(t => t.employee_id === parseInt(empId, 10));
+      res = await query(`${baseQuery} WHERE t.employee_id = $1 ORDER BY t.id DESC`, [empId]);
+    } else {
+      res = await query(`${baseQuery} ORDER BY t.id DESC`);
     }
+
+    let rows = res.rows;
     if (pmId) {
       rows = rows.filter(t => t.pm_id === parseInt(pmId, 10));
     }

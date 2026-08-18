@@ -5,8 +5,19 @@ export async function handleAssignments(req, pathSegments, queryParams) {
   const id = pathSegments[0]; // /api/assignments or /api/assignments/:id
 
   if (method === 'GET') {
+    const assignSelect = `
+      SELECT a.*,
+        p.name AS project_name, p.client_name,
+        u.name AS employee_name, u.email AS employee_email,
+        pm.name AS pm_name, p.project_manager_id AS pm_id
+      FROM assignments a
+      LEFT JOIN projects p ON p.id = a.project_id
+      LEFT JOIN users u ON u.id = a.employee_id
+      LEFT JOIN users pm ON pm.id = p.project_manager_id
+    `;
+
     if (id) {
-      const res = await query('SELECT * FROM assignments WHERE id = $1', [id]);
+      const res = await query(`${assignSelect} WHERE a.id = $1`, [id]);
       if (res.rows.length === 0) return { status: 404, body: { error: 'Assignment not found' } };
       return { status: 200, body: res.rows[0] };
     }
@@ -16,11 +27,11 @@ export async function handleAssignments(req, pathSegments, queryParams) {
 
     let res;
     if (empId) {
-      res = await query('SELECT * FROM assignments WHERE employee_id = $1 ORDER BY id DESC', [empId]);
+      res = await query(`${assignSelect} WHERE a.employee_id = $1 ORDER BY a.id DESC`, [empId]);
     } else if (projId) {
-      res = await query('SELECT * FROM assignments WHERE project_id = $1 ORDER BY id DESC', [projId]);
+      res = await query(`${assignSelect} WHERE a.project_id = $1 ORDER BY a.id DESC`, [projId]);
     } else {
-      res = await query('SELECT * FROM assignments ORDER BY id DESC');
+      res = await query(`${assignSelect} ORDER BY a.id DESC`);
     }
     return { status: 200, body: res.rows };
   }

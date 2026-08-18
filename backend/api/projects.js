@@ -5,19 +5,25 @@ export async function handleProjects(req, pathSegments, queryParams) {
   const id = pathSegments[0]; // /api/projects or /api/projects/:id
 
   if (method === 'GET') {
+    const projectSelect = `
+      SELECT p.*, u.name AS pm_name
+      FROM projects p
+      LEFT JOIN users u ON u.id = p.project_manager_id
+    `;
+
     if (id) {
-      const res = await query('SELECT * FROM projects WHERE id = $1', [id]);
+      const res = await query(`${projectSelect} WHERE p.id = $1`, [id]);
       if (res.rows.length === 0) return { status: 404, body: { error: 'Project not found' } };
       return { status: 200, body: res.rows[0] };
     }
-    
+
     // Optional filter by PM
     const pmId = queryParams.get('pm_id');
     let res;
     if (pmId) {
-      res = await query('SELECT * FROM projects WHERE project_manager_id = $1 ORDER BY id DESC', [pmId]);
+      res = await query(`${projectSelect} WHERE p.project_manager_id = $1 ORDER BY p.id DESC`, [pmId]);
     } else {
-      res = await query('SELECT * FROM projects ORDER BY id DESC');
+      res = await query(`${projectSelect} ORDER BY p.id DESC`);
     }
     return { status: 200, body: res.rows };
   }
