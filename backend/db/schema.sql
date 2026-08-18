@@ -132,15 +132,6 @@ CREATE TABLE invoices (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- RLS Policy for invoices (isolate_tenant)
-ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
-CREATE POLICY isolate_tenant_invoices ON invoices 
-  USING (
-    project_id IN (
-      SELECT id FROM projects WHERE vendor_id = current_setting('app.vendor_id', true)::int
-    )
-  );
-
 CREATE TABLE invoice_items (
   id SERIAL PRIMARY KEY,
   invoice_id INT REFERENCES invoices(id) ON DELETE CASCADE,
@@ -174,15 +165,6 @@ CREATE TABLE contractor_payrolls (
   idempotency_key VARCHAR(255) UNIQUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
--- RLS Policy for contractor_payrolls
-ALTER TABLE contractor_payrolls ENABLE ROW LEVEL SECURITY;
-CREATE POLICY isolate_tenant_payrolls ON contractor_payrolls 
-  USING (
-    project_id IN (
-      SELECT id FROM projects WHERE vendor_id = current_setting('app.vendor_id', true)::int
-    )
-  );
 
 CREATE TABLE audit_log (
   id SERIAL PRIMARY KEY,

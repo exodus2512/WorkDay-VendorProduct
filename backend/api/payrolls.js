@@ -1,8 +1,11 @@
 import { query } from '../db/db.js';
+import { logAudit } from '../utils/audit.js';
+import { isValidTransition } from '../utils/stateMachine.js';
 
 export async function handlePayrolls(req, pathSegments, queryParams) {
   const method = req.method;
   const id = pathSegments[0]; // /api/payrolls or /api/payrolls/:id
+  const user = req.user; // Authenticated user from JWT
 
   if (method === 'GET') {
     const payrollSelect = `
@@ -40,11 +43,27 @@ export async function handlePayrolls(req, pathSegments, queryParams) {
   if (method === 'PUT' && id) {
     const body = await req.json();
     const { status } = body;
+
+    const curr = await query('SELECT status FROM contractor_payrolls WHERE id = $1', [id]);
+    if (curr.rows.length === 0) return { status: 404, body: { error: 'Payroll entry not found' } };
+
+    if (!isValidTransition('PAYROLL', curr.rows[0].status, status)) {
+      await logAudit({ vendor_id: user.vendor_id, entity_type: 'PAYROLL', entity_id: parseInt(id), actor_id: user.id, action: 'INVALID_TRANSITION_ATTEMPT', previous_status: curr.rows[0].status, new_status: status, metadata: { error: 'Invalid state transition' } });
+      return { status: 409, body: { error: `Invalid transition from ${curr.rows[0].status} to ${status}` } };
+    }
+
     const res = await query(
-      `UPDATE contractor_payrolls SET status = $1 WHERE id = $2 RETURNING *`,
-      [status, id]
+      `UPDATE contractor_payrolls SET status = $1 WHERE id = $2 AND status = $3 RETURNING *`,
+      [status, id, curr.rows[0].status]
     );
-    if (res.rows.length === 0) return { status: 404, body: { error: 'Payroll entry not found' } };
+    if (res.rows.length === 0) return { status: 409, body: { error: 'Payroll state changed concurrently' } };
+
+    // Audit Log
+    await logAudit({
+      vendor_id: user.vendor_id, entity_type: 'PAYROLL', entity_id: parseInt(id), actor_id: user.id, action: 'UPDATE',
+      previous_status: curr.rows[0].status, new_status: status
+    });
+
     return { status: 200, body: res.rows[0] };
   }
 

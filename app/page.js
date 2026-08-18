@@ -211,14 +211,25 @@ export default function Home() {
                   )}
                   {activeSection === 'timesheets' && (
                     <PMTimesheets
-                      timesheets={data.timesheets.filter(t => t.pm_id === currentUser.id || data.projects.some(p => p.id === t.project_id && p.project_manager_id === currentUser.id))}
+                      timesheets={data.timesheets.filter(t => {
+                        const currentPmIdStr = String(currentUser?.id || '');
+                        if (t.pm_id && String(t.pm_id) === currentPmIdStr) return true;
+                        if (t.project_id && data.projects.some(p => String(p.id) === String(t.project_id) && String(p.project_manager_id) === currentPmIdStr)) return true;
+                        if (t.assignment_id && data.assignments.some(a => String(a.id) === String(t.assignment_id) && data.projects.some(p => String(p.id) === String(a.project_id) && String(p.project_manager_id) === currentPmIdStr))) return true;
+                        return false;
+                      })}
                       assignments={data.assignments}
                       onRefresh={fetchData}
                     />
                   )}
                   {activeSection === 'milestones' && (
                     <PMMilestones
-                      milestones={data.milestones.filter(m => m.pm_id === currentUser.id || data.projects.some(p => p.id === m.project_id && p.project_manager_id === currentUser.id))}
+                      milestones={data.milestones.filter(m => {
+                        const currentPmIdStr = String(currentUser?.id || '');
+                        if (m.pm_id && String(m.pm_id) === currentPmIdStr) return true;
+                        if (m.project_id && data.projects.some(p => String(p.id) === String(m.project_id) && String(p.project_manager_id) === currentPmIdStr)) return true;
+                        return false;
+                      })}
                       projects={data.projects}
                       onRefresh={fetchData}
                     />

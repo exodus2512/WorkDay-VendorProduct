@@ -25,16 +25,26 @@ export default function PMDashboard({ data, pmUser, onNavigate, onRefresh }) {
 
   const { projects = [], users = [], assignments = [], timesheets = [], milestones = [] } = data;
 
-  const myProjects = projects.filter(p => p.project_manager_id === pmUser.id);
-  const myProjectIds = myProjects.map(p => p.id);
+  const pmIdStr = String(pmUser?.id || '');
+  const myProjects = projects.filter(p => String(p.project_manager_id) === pmIdStr);
+  const myProjectIds = myProjects.map(p => String(p.id));
 
-  const myAssignments = assignments.filter(a => myProjectIds.includes(a.project_id));
+  const myAssignments = assignments.filter(a => myProjectIds.includes(String(a.project_id)));
   const myContractorCount = new Set(myAssignments.map(a => a.employee_id)).size;
 
-  const myTimesheets = timesheets.filter(t => myProjectIds.includes(t.project_id));
+  const myTimesheets = timesheets.filter(t => {
+    if (t.pm_id && String(t.pm_id) === pmIdStr) return true;
+    if (t.project_id && myProjectIds.includes(String(t.project_id))) return true;
+    if (t.assignment_id && myAssignments.some(a => String(a.id) === String(t.assignment_id))) return true;
+    return false;
+  });
   const pendingTimesheets = myTimesheets.filter(t => t.status === 'SUBMITTED');
 
-  const myMilestones = milestones.filter(m => myProjectIds.includes(m.project_id));
+  const myMilestones = milestones.filter(m => {
+    if (m.pm_id && String(m.pm_id) === pmIdStr) return true;
+    if (m.project_id && myProjectIds.includes(String(m.project_id))) return true;
+    return false;
+  });
   const pendingMilestones = myMilestones.filter(m => m.status === 'SUBMITTED');
 
   const todayStr = new Date().toISOString().split('T')[0];

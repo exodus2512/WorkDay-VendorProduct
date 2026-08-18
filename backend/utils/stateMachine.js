@@ -20,7 +20,7 @@ const STATE_TRANSITIONS = {
   },
   INVOICE: {
     DRAFT: ['SUBMITTED'],
-    SUBMITTED: ['APPROVED', 'REJECTED'],
+    SUBMITTED: ['APPROVED', 'PAID', 'REJECTED'],
     REJECTED: ['SUBMITTED'], // Can resubmit if needed
     APPROVED: ['PAID'],
     PAID: [] // Terminal state

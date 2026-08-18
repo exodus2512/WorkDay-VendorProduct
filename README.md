@@ -15,6 +15,10 @@ Production-style hackathon MVP for contingent workforce management, timesheet lo
 - **Neon PostgreSQL Database Driver**:
   - Uses `@neondatabase/serverless` for database queries with automatic table initialization (`schema.sql`) and realistic seed data (`seed.sql`).
 
+### Financial Settlement: Payroll Driven by Client Payment
+
+In this system, contractor payroll generation is explicitly coupled to client invoice settlement. Payroll records (`contractor_payrolls`) are generated automatically when a client invoice reaches `PAID` status. Once the invoice is accepted and paid, payouts are processed for all associated timesheets and milestone deliverables included in the invoice, ensuring financial alignment between vendor receivables and contractor disbursemenets.
+
 ---
 
 ## Directory Architecture

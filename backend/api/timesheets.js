@@ -1,9 +1,12 @@
 import { query } from '../db/db.js';
+import { logAudit } from '../utils/audit.js';
+import { isValidTransition } from '../utils/stateMachine.js';
 
 export async function handleTimesheets(req, pathSegments, queryParams) {
   const method = req.method;
   const id = pathSegments[0]; // /api/timesheets or /api/timesheets/:id
   const action = pathSegments[1]; // e.g. /api/timesheets/:id/approve or /api/timesheets/:id/reject
+  const user = req.user; // Set by auth middleware
 
   if (method === 'GET') {
     if (id && !action) {
@@ -54,11 +57,21 @@ export async function handleTimesheets(req, pathSegments, queryParams) {
 
   if (method === 'POST') {
     if (id && action === 'approve') {
+      // Fetch current to check transition
+      const curr = await query('SELECT status FROM timesheets WHERE id = $1', [id]);
+      if (curr.rows.length === 0) return { status: 404, body: { error: 'Timesheet not found' } };
+      
+      if (!isValidTransition('TIMESHEET', curr.rows[0].status, 'APPROVED')) {
+        await logAudit({ vendor_id: user.vendor_id, entity_type: 'TIMESHEET', entity_id: parseInt(id), actor_id: user.id, action: 'INVALID_TRANSITION_ATTEMPT', previous_status: curr.rows[0].status, new_status: 'APPROVED', metadata: { error: 'Invalid state transition' } });
+        return { status: 409, body: { error: `Invalid transition from ${curr.rows[0].status} to APPROVED` } };
+      }
+
+      // Concurrency check: must currently be SUBMITTED
       const res = await query(
-        "UPDATE timesheets SET status = 'APPROVED', rejection_reason = NULL WHERE id = $1 RETURNING *",
+        "UPDATE timesheets SET status = 'APPROVED', rejection_reason = NULL WHERE id = $1 AND status = 'SUBMITTED' RETURNING *",
         [id]
       );
-      if (res.rows.length === 0) return { status: 404, body: { error: 'Timesheet not found' } };
+      if (res.rows.length === 0) return { status: 409, body: { error: 'Timesheet state changed concurrently. Please refresh.' } };
       
       const ts = res.rows[0];
       await query(
@@ -66,17 +79,33 @@ export async function handleTimesheets(req, pathSegments, queryParams) {
         [ts.employee_id, `Your timesheet #${ts.id} (${ts.total_hours} hrs) was APPROVED by Project Manager.`, 'TIMESHEET_APPROVED']
       );
 
-      return { status: 200, body: res.rows[0] };
+      // Audit Log
+      await logAudit({
+        vendor_id: user.vendor_id, entity_type: 'TIMESHEET', entity_id: ts.id, actor_id: user.id, action: 'APPROVE',
+        previous_status: curr.rows[0].status, new_status: 'APPROVED'
+      });
+
+      return { status: 200, body: ts };
     }
 
     if (id && action === 'reject') {
       const body = await req.json();
       const { rejection_reason } = body;
+
+      const curr = await query('SELECT status FROM timesheets WHERE id = $1', [id]);
+      if (curr.rows.length === 0) return { status: 404, body: { error: 'Timesheet not found' } };
+
+      if (!isValidTransition('TIMESHEET', curr.rows[0].status, 'REJECTED')) {
+        await logAudit({ vendor_id: user.vendor_id, entity_type: 'TIMESHEET', entity_id: parseInt(id), actor_id: user.id, action: 'INVALID_TRANSITION_ATTEMPT', previous_status: curr.rows[0].status, new_status: 'REJECTED', metadata: { error: 'Invalid state transition' } });
+        return { status: 409, body: { error: `Invalid transition from ${curr.rows[0].status} to REJECTED` } };
+      }
+
+      // Concurrency check
       const res = await query(
-        "UPDATE timesheets SET status = 'REJECTED', rejection_reason = $1 WHERE id = $2 RETURNING *",
+        "UPDATE timesheets SET status = 'REJECTED', rejection_reason = $1 WHERE id = $2 AND status = 'SUBMITTED' RETURNING *",
         [rejection_reason || 'Needs revision.', id]
       );
-      if (res.rows.length === 0) return { status: 404, body: { error: 'Timesheet not found' } };
+      if (res.rows.length === 0) return { status: 409, body: { error: 'Timesheet state changed concurrently. Please refresh.' } };
 
       const ts = res.rows[0];
       await query(
@@ -84,7 +113,13 @@ export async function handleTimesheets(req, pathSegments, queryParams) {
         [ts.employee_id, `Your timesheet #${ts.id} was REJECTED: ${rejection_reason || 'Needs revision.'}`, 'TIMESHEET_REJECTED']
       );
 
-      return { status: 200, body: res.rows[0] };
+      // Audit Log
+      await logAudit({
+        vendor_id: user.vendor_id, entity_type: 'TIMESHEET', entity_id: ts.id, actor_id: user.id, action: 'REJECT',
+        previous_status: curr.rows[0].status, new_status: 'REJECTED', metadata: { rejection_reason }
+      });
+
+      return { status: 200, body: ts };
     }
 
     // Create or submit new timesheet
@@ -112,6 +147,12 @@ export async function handleTimesheets(req, pathSegments, queryParams) {
       }
     }
 
+    // Audit Log
+    await logAudit({
+      vendor_id: user.vendor_id, entity_type: 'TIMESHEET', entity_id: newTs.id, actor_id: user.id, action: 'CREATE',
+      new_status: newTs.status
+    });
+
     // Return joined row so the frontend list renders with project_name, billing_rate, etc.
     const joinedRes = await query(`
       SELECT t.*,
@@ -133,6 +174,14 @@ export async function handleTimesheets(req, pathSegments, queryParams) {
     const body = await req.json();
     const { total_hours, work_description, status, entries, rejection_reason } = body;
 
+    const curr = await query('SELECT status FROM timesheets WHERE id = $1', [id]);
+    if (curr.rows.length === 0) return { status: 404, body: { error: 'Timesheet not found' } };
+
+    if (!isValidTransition('TIMESHEET', curr.rows[0].status, status)) {
+      await logAudit({ vendor_id: user.vendor_id, entity_type: 'TIMESHEET', entity_id: parseInt(id), actor_id: user.id, action: 'INVALID_TRANSITION_ATTEMPT', previous_status: curr.rows[0].status, new_status: status, metadata: { error: 'Invalid state transition' } });
+      return { status: 409, body: { error: `Invalid transition from ${curr.rows[0].status} to ${status}` } };
+    }
+
     const res = await query(
       `UPDATE timesheets SET total_hours = $1, work_description = $2, status = $3, rejection_reason = $4
        WHERE id = $5 RETURNING *`,
@@ -148,6 +197,12 @@ export async function handleTimesheets(req, pathSegments, queryParams) {
         );
       }
     }
+
+    // Audit Log
+    await logAudit({
+      vendor_id: user.vendor_id, entity_type: 'TIMESHEET', entity_id: parseInt(id), actor_id: user.id, action: 'UPDATE',
+      previous_status: curr.rows[0].status, new_status: status
+    });
 
     return { status: 200, body: res.rows[0] };
   }

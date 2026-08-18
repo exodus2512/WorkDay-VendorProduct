@@ -9,6 +9,7 @@ import { handleNotifications } from '../../../backend/api/notifications.js';
 import { handlePayrolls } from '../../../backend/api/payrolls.js';
 import { handleSeed } from '../../../backend/api/seed.js';
 import { handleAuth } from '../../../backend/api/auth.js';
+import { handleAuditLog } from '../../../backend/api/audit-log.js';
 
 async function routeHandler(req, { params }) {
   const slug = params.slug || [];
@@ -46,6 +47,9 @@ async function routeHandler(req, { params }) {
         break;
       case 'payrolls':
         result = await handlePayrolls(req, subSegments, searchParams);
+        break;
+      case 'audit-log':
+        result = await handleAuditLog(req, searchParams);
         break;
       case 'seed':
         result = await handleSeed(req);

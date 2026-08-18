@@ -75,7 +75,7 @@ export function validateInvoice({ project, assignments = [], timesheets = [], mi
     checks.assignmentExists.details = 'No assignments found for this project.';
     exceptions.push('Missing project assignment record.');
   } else {
-    const inactive = assignments.filter(a => a.status !== 'ACTIVE' && a.status !== 'EXPIRING_SOON');
+    const inactive = assignments.filter(a => a.status !== 'ACTIVE' && a.status !== 'EXPIRING_SOON' && a.status !== 'COMPLETED');
     if (inactive.length > 0) {
       checks.assignmentActive.passed = false;
       checks.assignmentActive.details = `${inactive.length} assignment(s) are inactive or terminated.`;

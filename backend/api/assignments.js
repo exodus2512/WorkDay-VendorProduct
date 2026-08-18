@@ -61,6 +61,14 @@ export async function handleAssignments(req, pathSegments, queryParams) {
     );
 
     const newId = insertRes.rows[0].id;
+    const user = req.user; // from JWT
+
+    // Rate versioning: Insert initial rate into history
+    await query(
+      `INSERT INTO assignment_rate_history (assignment_id, rate, effective_from, effective_to, created_by)
+       VALUES ($1, $2, $3, NULL, $4)`,
+      [newId, billing_rate, start_date, user?.id || null]
+    );
 
     // Notify the employee with the actual project name
     await query(
@@ -88,11 +96,32 @@ export async function handleAssignments(req, pathSegments, queryParams) {
     const body = await req.json();
     const { role, start_date, end_date, billing_rate, weekly_hour_limit, status } = body;
 
+    const currRes = await query('SELECT billing_rate FROM assignments WHERE id = $1', [id]);
+    const currentRate = parseFloat(currRes.rows[0]?.billing_rate || 0);
+    const newRate = parseFloat(billing_rate);
+    const user = req.user;
+
     const res = await query(
       `UPDATE assignments SET role = $1, start_date = $2, end_date = $3, billing_rate = $4, weekly_hour_limit = $5, status = $6
        WHERE id = $7 RETURNING *`,
       [role, start_date, end_date, billing_rate, weekly_hour_limit, status, id]
     );
+
+    // Rate versioning: If rate changed, close old rate history and start new one
+    if (currentRate !== newRate) {
+      const today = new Date().toISOString().split('T')[0];
+      // Close open rate
+      await query(
+        `UPDATE assignment_rate_history SET effective_to = $1 WHERE assignment_id = $2 AND effective_to IS NULL`,
+        [today, id]
+      );
+      // Insert new rate
+      await query(
+        `INSERT INTO assignment_rate_history (assignment_id, rate, effective_from, effective_to, created_by)
+         VALUES ($1, $2, $3, NULL, $4)`,
+        [id, newRate, today, user?.id || null]
+      );
+    }
 
     return { status: 200, body: res.rows[0] };
   }

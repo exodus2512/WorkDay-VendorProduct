@@ -217,7 +217,7 @@ export default function ClientPortal({ clientUser, onRefresh }) {
                     id="project-budget"
                     label="Total Budget (USD) *"
                     type="number"
-                    step="1000"
+                    step="any"
                     min="0"
                     required
                     placeholder="150000"
@@ -296,7 +296,7 @@ export default function ClientPortal({ clientUser, onRefresh }) {
                       <Input
                         label="Payment Amount (USD) *"
                         type="number"
-                        step="500"
+                        step="any"
                         min="0"
                         placeholder="25000"
                         value={ms.amount}
@@ -371,7 +371,7 @@ export default function ClientPortal({ clientUser, onRefresh }) {
               </Card>
             ) : (
               myProjects.map(project => (
-                <ProjectCard key={project.id} project={project} statusColor={statusColor} />
+                <ProjectCard key={project.id} project={project} availablePMs={availablePMs} statusColor={statusColor} onRefreshProjects={loadMyProjectsAndPMs} />
               ))
             )}
           </div>
@@ -381,9 +381,12 @@ export default function ClientPortal({ clientUser, onRefresh }) {
   );
 }
 
-function ProjectCard({ project, statusColor }) {
+function ProjectCard({ project, availablePMs = [], statusColor, onRefreshProjects }) {
   const [milestones, setMilestones] = useState([]);
   const [expanded, setExpanded] = useState(false);
+  const [showAssignPm, setShowAssignPm] = useState(false);
+  const [selectedPmId, setSelectedPmId] = useState(project.project_manager_id || '');
+  const [updatingPm, setUpdatingPm] = useState(false);
 
   useEffect(() => {
     if (expanded && milestones.length === 0) {
@@ -393,6 +396,24 @@ function ProjectCard({ project, statusColor }) {
         .catch(console.error);
     }
   }, [expanded]);
+
+  const handleAssignPm = async () => {
+    if (!selectedPmId) return;
+    setUpdatingPm(true);
+    try {
+      await fetch(`/api/projects/${project.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'ASSIGN_PM', project_manager_id: selectedPmId })
+      });
+      setShowAssignPm(false);
+      if (onRefreshProjects) onRefreshProjects();
+    } catch (err) {
+      console.error('Failed to assign PM:', err);
+    } finally {
+      setUpdatingPm(false);
+    }
+  };
 
   const approvedMs = milestones.filter(m => m.status === 'APPROVED' || m.status === 'COMPLETED').length;
 
@@ -436,14 +457,63 @@ function ProjectCard({ project, statusColor }) {
           </div>
         </div>
 
-        {project.pm_name && (
-          <div className="mt-4 flex items-center gap-2 text-sm text-slate-600">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
-              {project.pm_name[0]}
+        {/* PM Section & Assignment Toggle */}
+        <div className="mt-4">
+          {project.pm_name ? (
+            <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold">
+                  {project.pm_name[0]}
+                </div>
+                <span>PM: <span className="font-semibold text-slate-800">{project.pm_name}</span></span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAssignPm(!showAssignPm)}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                {showAssignPm ? 'Cancel' : 'Change PM'}
+              </button>
             </div>
-            <span>PM: <span className="font-semibold text-slate-800">{project.pm_name}</span></span>
-          </div>
-        )}
+          ) : (
+            <div className="flex items-center justify-between bg-amber-50 p-3 rounded-xl border border-amber-200 text-sm">
+              <span className="text-xs font-semibold text-amber-800">No Project Manager assigned yet</span>
+              <button
+                type="button"
+                onClick={() => setShowAssignPm(!showAssignPm)}
+                className="text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 px-3 py-1 rounded-lg transition-colors"
+              >
+                {showAssignPm ? 'Cancel' : 'Assign PM'}
+              </button>
+            </div>
+          )}
+
+          {showAssignPm && (
+            <div className="mt-3 p-3 bg-blue-50/80 border border-blue-200 rounded-xl space-y-2">
+              <label className="block text-xs font-bold text-slate-700">Select Project Manager</label>
+              <div className="flex gap-2">
+                <select
+                  value={selectedPmId}
+                  onChange={e => setSelectedPmId(e.target.value)}
+                  className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                >
+                  <option value="">Select a Manager</option>
+                  {availablePMs.map(pm => (
+                    <option key={pm.id} value={pm.id}>{pm.name}</option>
+                  ))}
+                </select>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={!selectedPmId || updatingPm}
+                  onClick={handleAssignPm}
+                >
+                  {updatingPm ? 'Saving...' : 'Save PM'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
 
         <button
           onClick={() => setExpanded(!expanded)}
