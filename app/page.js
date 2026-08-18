@@ -190,16 +190,24 @@ export default function Home() {
                     <PMDashboard data={data} pmUser={currentUser} onNavigate={setActiveSection} onRefresh={fetchData} />
                   )}
                   {activeSection === 'projects' && (
-                    <PMProjects projects={data.projects} pmUser={currentUser} assignments={data.assignments} milestones={data.milestones} />
+                    <PMProjects projects={data.projects} pmUser={currentUser} assignments={data.assignments} milestones={data.milestones} onRefresh={fetchData} />
                   )}
                   {activeSection === 'team' && (
-                    <PMTeam projects={data.projects} pmUser={currentUser} assignments={data.assignments} users={data.users} />
+                    <PMTeam projects={data.projects} pmUser={currentUser} assignments={data.assignments} users={data.users} onRefresh={fetchData} />
                   )}
                   {activeSection === 'timesheets' && (
-                    <PMTimesheets timesheets={data.timesheets} assignments={data.assignments} onRefresh={fetchData} />
+                    <PMTimesheets
+                      timesheets={data.timesheets.filter(t => t.pm_id === currentUser.id || data.projects.some(p => p.id === t.project_id && p.project_manager_id === currentUser.id))}
+                      assignments={data.assignments}
+                      onRefresh={fetchData}
+                    />
                   )}
                   {activeSection === 'milestones' && (
-                    <PMMilestones milestones={data.milestones} projects={data.projects} onRefresh={fetchData} />
+                    <PMMilestones
+                      milestones={data.milestones.filter(m => m.pm_id === currentUser.id || data.projects.some(p => p.id === m.project_id && p.project_manager_id === currentUser.id))}
+                      projects={data.projects}
+                      onRefresh={fetchData}
+                    />
                   )}
                   {activeSection === 'payrolls' && (
                     <ContractorPayrolls payrolls={(data.payrolls || []).filter(p => data.projects.some(proj => proj.id === p.project_id && proj.project_manager_id === currentUser.id))} />
@@ -211,10 +219,10 @@ export default function Home() {
               {currentRole === 'EMPLOYEE' && (
                 <>
                   {activeSection === 'dashboard' && (
-                    <EmployeeDashboard data={data} empUser={currentUser} onNavigate={setActiveSection} />
+                    <EmployeeDashboard data={data} empUser={currentUser} onNavigate={setActiveSection} onRefresh={fetchData} />
                   )}
                   {activeSection === 'assignment' && (
-                    <EmployeeAssignment assignments={data.assignments} empUser={currentUser} />
+                    <EmployeeAssignment assignments={data.assignments} empUser={currentUser} onRefresh={fetchData} />
                   )}
                   {activeSection === 'timesheets' && (
                     <EmployeeTimesheets timesheets={data.timesheets.filter(t => t.employee_id === currentUser.id)} assignments={data.assignments.filter(a => a.employee_id === currentUser.id)} empUser={currentUser} onRefresh={fetchData} />
@@ -233,7 +241,7 @@ export default function Home() {
 
               {/* CLIENT PORTAL */}
               {currentRole === 'CLIENT' && (
-                <ClientPortal clientUser={currentUser} />
+                <ClientPortal clientUser={currentUser} onRefresh={fetchData} />
               )}
             </>
           )}

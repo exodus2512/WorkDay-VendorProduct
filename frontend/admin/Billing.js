@@ -12,15 +12,15 @@ import {
 import { Calculator, CheckCircle2, AlertTriangle, ArrowRight, ShieldCheck } from 'lucide-react';
 
 export default function AdminBilling({ timesheets = [], milestones = [], projects = [], onNavigate, onRefresh }) {
-  const [selectedProjectId, setSelectedProjectId] = useState(projects.length > 0 ? projects[0].id : '');
+  const [selectedProjectId, setSelectedProjectId] = useState('');
   const [validationModal, setValidationModal] = useState(false);
   const [validationData, setValidationData] = useState(null);
   const [generating, setGenerating] = useState(false);
 
-  const selectedProject = projects.find(p => p.id === parseInt(selectedProjectId, 10)) || projects[0];
+  const selectedProject = selectedProjectId ? projects.find(p => Number(p.id) === Number(selectedProjectId)) : null;
 
-  const approvedTimesheets = timesheets.filter(t => t.status === 'APPROVED' && (!selectedProjectId || t.project_id === parseInt(selectedProjectId, 10)));
-  const approvedMilestones = milestones.filter(m => (m.status === 'APPROVED' || m.status === 'COMPLETED') && (!selectedProjectId || m.project_id === parseInt(selectedProjectId, 10)));
+  const approvedTimesheets = timesheets.filter(t => (t.status === 'APPROVED') && (!selectedProjectId || Number(t.project_id) === Number(selectedProjectId)));
+  const approvedMilestones = milestones.filter(m => (m.status === 'APPROVED' || m.status === 'COMPLETED') && (!selectedProjectId || Number(m.project_id) === Number(selectedProjectId)));
 
   const timesheetTotal = approvedTimesheets.reduce((acc, t) => acc + (parseFloat(t.total_hours || 0) * parseFloat(t.billing_rate || 0)), 0);
   const milestoneTotal = approvedMilestones.reduce((acc, m) => acc + parseFloat(m.amount || 0), 0);
@@ -35,7 +35,7 @@ export default function AdminBilling({ timesheets = [], milestones = [], project
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          project_id: selectedProject?.id,
+          project_id: selectedProject ? selectedProject.id : projects[0]?.id,
           timesheet_ids: approvedTimesheets.map(t => t.id),
           milestone_ids: approvedMilestones.map(m => m.id)
         })
@@ -86,6 +86,7 @@ export default function AdminBilling({ timesheets = [], milestones = [], project
             onChange={e => setSelectedProjectId(e.target.value)}
             className="px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-xl font-semibold text-slate-800 shadow-sm"
           >
+            <option value="">All Projects (Global Consolidation)</option>
             {projects.map(p => (
               <option key={p.id} value={p.id}>{p.name} ({p.client_name})</option>
             ))}

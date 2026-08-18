@@ -6,7 +6,7 @@ import {
   Target, CheckCircle, Clock, Eye, LayoutDashboard
 } from 'lucide-react';
 
-export default function ClientPortal({ clientUser }) {
+export default function ClientPortal({ clientUser, onRefresh }) {
   const [activeTab, setActiveTab] = useState('submit');
   const [myProjects, setMyProjects] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
@@ -119,6 +119,7 @@ export default function ClientPortal({ clientUser }) {
       setSubmitSuccess(true);
       setForm({ name: '', description: '', budget: '', start_date: new Date().toISOString().split('T')[0], end_date: '' });
       setMilestones([{ name: '', description: '', amount: '', due_date: '' }]);
+      if (onRefresh) onRefresh();
     } catch (err) {
       setSubmitError('Network error. Please try again.');
     }
