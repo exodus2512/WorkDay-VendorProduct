@@ -1,0 +1,115 @@
+-- Schema for Contingent Workforce & Timesheet Tracker MVP
+
+DROP TABLE IF EXISTS notifications CASCADE;
+DROP TABLE IF EXISTS invoice_items CASCADE;
+DROP TABLE IF EXISTS invoices CASCADE;
+DROP TABLE IF EXISTS timesheet_entries CASCADE;
+DROP TABLE IF EXISTS timesheets CASCADE;
+DROP TABLE IF EXISTS milestones CASCADE;
+DROP TABLE IF EXISTS assignments CASCADE;
+DROP TABLE IF EXISTS projects CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password VARCHAR(255) NOT NULL DEFAULT 'password123',
+  role VARCHAR(50) NOT NULL CHECK (role IN ('VENDOR_ADMIN', 'PROJECT_MANAGER', 'EMPLOYEE')),
+  status VARCHAR(50) DEFAULT 'ACTIVE',
+  skills TEXT,
+  availability VARCHAR(50) DEFAULT 'FULL_TIME',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE projects (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  client_name VARCHAR(255) NOT NULL,
+  description TEXT,
+  budget NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  status VARCHAR(50) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'ACTIVE', 'COMPLETED', 'REJECTED')),
+  project_manager_id INT REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE assignments (
+  id SERIAL PRIMARY KEY,
+  project_id INT REFERENCES projects(id) ON DELETE CASCADE,
+  employee_id INT REFERENCES users(id) ON DELETE CASCADE,
+  role VARCHAR(100) NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  billing_rate NUMERIC(10, 2) NOT NULL,
+  weekly_hour_limit INT NOT NULL DEFAULT 40,
+  status VARCHAR(50) DEFAULT 'ACTIVE',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE milestones (
+  id SERIAL PRIMARY KEY,
+  project_id INT REFERENCES projects(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  amount NUMERIC(12, 2) NOT NULL,
+  due_date DATE NOT NULL,
+  status VARCHAR(50) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'IN_PROGRESS', 'SUBMITTED', 'APPROVED', 'REJECTED', 'COMPLETED')),
+  submitted_by INT REFERENCES users(id) ON DELETE SET NULL,
+  evidence TEXT,
+  rejection_reason TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE timesheets (
+  id SERIAL PRIMARY KEY,
+  assignment_id INT REFERENCES assignments(id) ON DELETE CASCADE,
+  employee_id INT REFERENCES users(id) ON DELETE CASCADE,
+  week_start DATE NOT NULL,
+  total_hours NUMERIC(6, 2) NOT NULL DEFAULT 0.00,
+  work_description TEXT,
+  status VARCHAR(50) DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED')),
+  rejection_reason TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE timesheet_entries (
+  id SERIAL PRIMARY KEY,
+  timesheet_id INT REFERENCES timesheets(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  hours NUMERIC(4, 2) NOT NULL DEFAULT 0.00,
+  description TEXT
+);
+
+CREATE TABLE invoices (
+  id SERIAL PRIMARY KEY,
+  project_id INT REFERENCES projects(id) ON DELETE CASCADE,
+  invoice_number VARCHAR(100) UNIQUE NOT NULL,
+  invoice_date DATE NOT NULL,
+  subtotal NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+  tax NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+  total NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+  status VARCHAR(50) DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'PAID')),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE invoice_items (
+  id SERIAL PRIMARY KEY,
+  invoice_id INT REFERENCES invoices(id) ON DELETE CASCADE,
+  type VARCHAR(50) NOT NULL CHECK (type IN ('TIMESHEET', 'MILESTONE')),
+  reference_id INT NOT NULL,
+  description TEXT NOT NULL,
+  quantity NUMERIC(10, 2) NOT NULL,
+  rate NUMERIC(10, 2) NOT NULL,
+  amount NUMERIC(12, 2) NOT NULL
+);
+
+CREATE TABLE notifications (
+  id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(id) ON DELETE CASCADE,
+  message TEXT NOT NULL,
+  type VARCHAR(50) NOT NULL,
+  read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
