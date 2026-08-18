@@ -20,17 +20,18 @@ function getNeonSql() {
 // In-Memory Database Store as resilient fallback when Neon URL is not configured or offline
 const memoryDb = {
   users: [
-    { id: 1, name: 'Eleanor Vance', email: 'eleanor.vance@vendorcorp.com', password: 'password123', role: 'VENDOR_ADMIN', status: 'ACTIVE', skills: 'Workforce Planning, Vendor Management, Executive Billing', availability: 'FULL_TIME', created_at: '2026-06-01' },
-    { id: 2, name: 'Sarah Jenkins', email: 'sarah.j@vendorcorp.com', password: 'password123', role: 'PROJECT_MANAGER', status: 'ACTIVE', skills: 'Agile Delivery, Cloud Architecture, Scrum', availability: 'FULL_TIME', created_at: '2026-06-01' },
-    { id: 3, name: 'David Miller', email: 'david.m@vendorcorp.com', password: 'password123', role: 'PROJECT_MANAGER', status: 'ACTIVE', skills: 'ERP Implementation, Financial Tech, Technical Lead', availability: 'FULL_TIME', created_at: '2026-06-01' },
-    { id: 4, name: 'Alex Rivera', email: 'alex.rivera@contractor.io', password: 'password123', role: 'EMPLOYEE', status: 'ACTIVE', skills: 'React, Next.js, Tailwind CSS, Node.js', availability: 'FULL_TIME', created_at: '2026-06-01' },
-    { id: 5, name: 'Marcus Chen', email: 'marcus.chen@contractor.io', password: 'password123', role: 'EMPLOYEE', status: 'ACTIVE', skills: 'PostgreSQL, Database Tuning, Go, Backend API', availability: 'FULL_TIME', created_at: '2026-06-01' },
-    { id: 6, name: 'Elena Rostova', email: 'elena.rostova@contractor.io', password: 'password123', role: 'EMPLOYEE', status: 'ACTIVE', skills: 'UI/UX Design, Figma, Design Systems, Frontend', availability: 'PART_TIME', created_at: '2026-06-01' },
-    { id: 7, name: 'Devon Smith', email: 'devon.smith@contractor.io', password: 'password123', role: 'EMPLOYEE', status: 'ACTIVE', skills: 'DevOps, Kubernetes, AWS, Terraform', availability: 'FULL_TIME', created_at: '2026-06-01' },
-    { id: 8, name: 'Priya Patel', email: 'priya.patel@contractor.io', password: 'password123', role: 'EMPLOYEE', status: 'ACTIVE', skills: 'QA Automation, Cypress, Jest, Integration Testing', availability: 'FULL_TIME', created_at: '2026-06-01' },
-    { id: 9, name: 'Jordan Lee', email: 'jordan.lee@contractor.io', password: 'password123', role: 'EMPLOYEE', status: 'ACTIVE', skills: 'Python, Data Analytics, ETL, Snowflake', availability: 'FULL_TIME', created_at: '2026-06-01' },
-    { id: 10, name: 'Sam Taylor', email: 'sam.taylor@contractor.io', password: 'password123', role: 'EMPLOYEE', status: 'UNAVAILABLE', skills: 'iOS, Swift, Mobile Security', availability: 'UNAVAILABLE', created_at: '2026-06-01' },
-    { id: 11, name: 'Taylor Reed', email: 'taylor.reed@contractor.io', password: 'password123', role: 'EMPLOYEE', status: 'ACTIVE', skills: 'Fullstack JavaScript, GraphQL, Micro-frontends', availability: 'FULL_TIME', created_at: '2026-06-01' }
+    { id: 1,  name: 'Eleanor Vance', email: 'eleanor.vance@vendorcorp.com', password: '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', role: 'VENDOR_ADMIN',    status: 'ACTIVE',      skills: 'Workforce Planning, Vendor Management, Executive Billing', availability: 'FULL_TIME',   created_at: '2026-06-01' },
+    { id: 2,  name: 'Sarah Jenkins', email: 'sarah.j@vendorcorp.com',       password: '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', role: 'PROJECT_MANAGER', status: 'ACTIVE',      skills: 'Agile Delivery, Cloud Architecture, Scrum',                availability: 'FULL_TIME',   created_at: '2026-06-01' },
+    { id: 3,  name: 'David Miller',  email: 'david.m@vendorcorp.com',       password: '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', role: 'PROJECT_MANAGER', status: 'ACTIVE',      skills: 'ERP Implementation, Financial Tech, Technical Lead',       availability: 'FULL_TIME',   created_at: '2026-06-01' },
+    { id: 4,  name: 'Alex Rivera',   email: 'alex.rivera@contractor.io',    password: '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', role: 'EMPLOYEE',        status: 'ACTIVE',      skills: 'React, Next.js, Tailwind CSS, Node.js',                    availability: 'FULL_TIME',   created_at: '2026-06-01' },
+    { id: 5,  name: 'Marcus Chen',   email: 'marcus.chen@contractor.io',    password: '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', role: 'EMPLOYEE',        status: 'ACTIVE',      skills: 'PostgreSQL, Database Tuning, Go, Backend API',             availability: 'FULL_TIME',   created_at: '2026-06-01' },
+    { id: 6,  name: 'Elena Rostova', email: 'elena.rostova@contractor.io',  password: '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', role: 'EMPLOYEE',        status: 'ACTIVE',      skills: 'UI/UX Design, Figma, Design Systems, Frontend',            availability: 'PART_TIME',   created_at: '2026-06-01' },
+    { id: 7,  name: 'Devon Smith',   email: 'devon.smith@contractor.io',    password: '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', role: 'EMPLOYEE',        status: 'ACTIVE',      skills: 'DevOps, Kubernetes, AWS, Terraform',                       availability: 'FULL_TIME',   created_at: '2026-06-01' },
+    { id: 8,  name: 'Priya Patel',   email: 'priya.patel@contractor.io',    password: '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', role: 'EMPLOYEE',        status: 'ACTIVE',      skills: 'QA Automation, Cypress, Jest, Integration Testing',        availability: 'FULL_TIME',   created_at: '2026-06-01' },
+    { id: 9,  name: 'Jordan Lee',    email: 'jordan.lee@contractor.io',     password: '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', role: 'EMPLOYEE',        status: 'ACTIVE',      skills: 'Python, Data Analytics, ETL, Snowflake',                   availability: 'FULL_TIME',   created_at: '2026-06-01' },
+    { id: 10, name: 'Sam Taylor',    email: 'sam.taylor@contractor.io',     password: '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', role: 'EMPLOYEE',        status: 'UNAVAILABLE', skills: 'iOS, Swift, Mobile Security',                              availability: 'UNAVAILABLE', created_at: '2026-06-01' },
+    { id: 11, name: 'Taylor Reed',   email: 'taylor.reed@contractor.io',    password: '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', role: 'EMPLOYEE',        status: 'ACTIVE',      skills: 'Fullstack JavaScript, GraphQL, Micro-frontends',           availability: 'FULL_TIME',   created_at: '2026-06-01' },
+    { id: 12, name: 'Client Corp',   email: 'client@client.com',            password: '$2b$10$.O/fW8bu7/nPtn1jJP9hpOcVIWh5yOne674cZ.I6HmuzUuOwR4WaW',  role: 'CLIENT',          status: 'ACTIVE',      skills: 'Project Commissioning',                                    availability: 'FULL_TIME',   created_at: '2026-06-01' }
   ],
   projects: [
     { id: 1, name: 'Apex Fintech Modernization', client_name: 'Apex Financial Services', description: 'Full overhaul of core trading portal and client dashboard with modern web stack.', budget: 250000.00, start_date: '2026-06-01', end_date: '2026-12-31', status: 'ACTIVE', project_manager_id: 2, created_at: '2026-06-01' },
@@ -96,8 +97,12 @@ const memoryDb = {
     { id: 1, user_id: 4, message: 'Your timesheet for week starting 2026-08-03 (40 hrs) was APPROVED by Sarah Jenkins.', type: 'TIMESHEET_APPROVED', read: true, created_at: '2026-08-07' },
     { id: 2, user_id: 5, message: 'Your timesheet for week starting 2026-08-03 (40 hrs) was APPROVED by Sarah Jenkins.', type: 'TIMESHEET_APPROVED', read: true, created_at: '2026-08-07' },
     { id: 3, user_id: 7, message: 'Your timesheet for week 2026-08-10 was REJECTED: Hours exceed 40-hour limit.', type: 'TIMESHEET_REJECTED', read: false, created_at: '2026-08-14' },
-    { id: 4, user_id: 2, message: 'Milestone M2 submitted by Alex Rivera requires your review.', type: 'MILESTONE_SUBMITTED', read: false, created_at: '2026-08-14' },
-    { id: 5, user_id: 1, message: 'Invoice INV-2026-002 was submitted for client Logistics Global Inc.', type: 'INVOICE_SUBMITTED', read: false, created_at: '2026-08-12' }
+    { id: 4, user_id: 2, message: 'Milestone M2 submitted by Alex Rivera requires your review.', type: 'MILESTONE_SUBMITTED', read: false, created_at: '2026-08-15' },
+    { id: 5, user_id: 1, message: 'Invoice INV-2026-002 was submitted for client Logistics Global Inc.', type: 'INVOICE_SUBMITTED', read: false, created_at: '2026-08-16' }
+  ],
+  contractor_payrolls: [
+    { id: 1, milestone_id: 1, project_id: 1, employee_id: 4, assignment_id: 1, total_hours: 40.00, billing_rate: 85.00, gross_pay: 3400.00, status: 'PROCESSED', created_at: '2026-06-30' },
+    { id: 2, milestone_id: 1, project_id: 1, employee_id: 5, assignment_id: 2, total_hours: 40.00, billing_rate: 95.00, gross_pay: 3800.00, status: 'PROCESSED', created_at: '2026-06-30' }
   ]
 };
 

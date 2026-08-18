@@ -11,7 +11,8 @@ import {
   CheckSquare,
   Bell,
   Building2,
-  FileCheck
+  FileCheck,
+  DollarSign
 } from 'lucide-react';
 
 export default function Sidebar({ currentRole, activeSection, onSelectSection }) {
@@ -25,6 +26,7 @@ export default function Sidebar({ currentRole, activeSection, onSelectSection })
           { id: 'assignments', label: 'Assignments', icon: UserCheck },
           { id: 'billing', label: 'Billable Hours', icon: Calculator },
           { id: 'invoices', label: 'Invoices', icon: Receipt },
+          { id: 'payrolls', label: 'Contractor Payrolls', icon: DollarSign },
         ];
       case 'PROJECT_MANAGER':
         return [
@@ -33,6 +35,7 @@ export default function Sidebar({ currentRole, activeSection, onSelectSection })
           { id: 'team', label: 'Project Team', icon: Users },
           { id: 'timesheets', label: 'Timesheets', icon: Clock },
           { id: 'milestones', label: 'Milestones', icon: CheckSquare },
+          { id: 'payrolls', label: 'Contractor Payrolls', icon: DollarSign },
         ];
       case 'EMPLOYEE':
         return [
@@ -40,8 +43,11 @@ export default function Sidebar({ currentRole, activeSection, onSelectSection })
           { id: 'assignment', label: 'My Assignment', icon: Briefcase },
           { id: 'timesheets', label: 'My Timesheets', icon: Clock },
           { id: 'milestones', label: 'Milestones', icon: CheckSquare },
+          { id: 'payrolls', label: 'My Payrolls', icon: DollarSign },
           { id: 'notifications', label: 'Notifications', icon: Bell },
         ];
+      case 'CLIENT':
+        return [];
       default:
         return [];
     }
@@ -71,6 +77,7 @@ export default function Sidebar({ currentRole, activeSection, onSelectSection })
             {currentRole === 'VENDOR_ADMIN' && 'Vendor Admin'}
             {currentRole === 'PROJECT_MANAGER' && 'Project Manager'}
             {currentRole === 'EMPLOYEE' && 'Contractor Portal'}
+            {currentRole === 'CLIENT' && 'Client Portal'}
           </span>
         </div>
       </div>

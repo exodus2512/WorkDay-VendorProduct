@@ -26,6 +26,9 @@ import EmployeeAssignment from '../frontend/employee/Assignment';
 import EmployeeTimesheets from '../frontend/employee/Timesheets';
 import EmployeeMilestones from '../frontend/employee/Milestones';
 import EmployeeNotifications from '../frontend/employee/Notifications';
+import ClientPortal from '../frontend/client/Portal';
+import ContractorPayrolls from '../frontend/admin/Payrolls';
+
 
 export default function Home() {
   const [authToken, setAuthToken] = useState(null);
@@ -66,14 +69,15 @@ export default function Home() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [uRes, pRes, aRes, tRes, mRes, iRes, nRes] = await Promise.all([
+      const [uRes, pRes, aRes, tRes, mRes, iRes, nRes, payRes] = await Promise.all([
         fetch('/api/employees').then(r => r.json()),
         fetch('/api/projects').then(r => r.json()),
         fetch('/api/assignments').then(r => r.json()),
         fetch('/api/timesheets').then(r => r.json()),
         fetch('/api/milestones').then(r => r.json()),
         fetch('/api/invoices').then(r => r.json()),
-        fetch('/api/notifications').then(r => r.json())
+        fetch('/api/notifications').then(r => r.json()),
+        fetch('/api/payrolls').then(r => r.json())
       ]);
 
       setData({
@@ -83,7 +87,8 @@ export default function Home() {
         timesheets: Array.isArray(tRes) ? tRes : [],
         milestones: Array.isArray(mRes) ? mRes : [],
         invoices: Array.isArray(iRes) ? iRes : [],
-        notifications: Array.isArray(nRes) ? nRes : []
+        notifications: Array.isArray(nRes) ? nRes : [],
+        payrolls: Array.isArray(payRes) ? payRes : []
       });
     } catch (err) {
       console.error('Error fetching application state:', err);
@@ -158,7 +163,7 @@ export default function Home() {
                     <AdminDashboard data={data} onNavigate={setActiveSection} onRefresh={fetchData} />
                   )}
                   {activeSection === 'projects' && (
-                    <AdminProjects projects={data.projects} pms={pms} milestones={data.milestones} onRefresh={fetchData} />
+                    <AdminProjects projects={data.projects} pms={pms} milestones={data.milestones} assignments={data.assignments} onRefresh={fetchData} />
                   )}
                   {activeSection === 'workforce' && (
                     <AdminWorkforce users={data.users} assignments={data.assignments} onRefresh={fetchData} />
@@ -171,6 +176,9 @@ export default function Home() {
                   )}
                   {activeSection === 'invoices' && (
                     <AdminInvoices invoices={data.invoices} onRefresh={fetchData} />
+                  )}
+                  {activeSection === 'payrolls' && (
+                    <ContractorPayrolls payrolls={data.payrolls} />
                   )}
                 </>
               )}
@@ -193,6 +201,9 @@ export default function Home() {
                   {activeSection === 'milestones' && (
                     <PMMilestones milestones={data.milestones} projects={data.projects} onRefresh={fetchData} />
                   )}
+                  {activeSection === 'payrolls' && (
+                    <ContractorPayrolls payrolls={(data.payrolls || []).filter(p => data.projects.some(proj => proj.id === p.project_id && proj.project_manager_id === currentUser.id))} />
+                  )}
                 </>
               )}
 
@@ -206,15 +217,23 @@ export default function Home() {
                     <EmployeeAssignment assignments={data.assignments} empUser={currentUser} />
                   )}
                   {activeSection === 'timesheets' && (
-                    <EmployeeTimesheets timesheets={data.timesheets} assignments={data.assignments} empUser={currentUser} onRefresh={fetchData} />
+                    <EmployeeTimesheets timesheets={data.timesheets.filter(t => t.employee_id === currentUser.id)} assignments={data.assignments.filter(a => a.employee_id === currentUser.id)} empUser={currentUser} onRefresh={fetchData} />
                   )}
                   {activeSection === 'milestones' && (
-                    <EmployeeMilestones milestones={data.milestones} empUser={currentUser} onRefresh={fetchData} />
+                    <EmployeeMilestones milestones={data.milestones} assignments={data.assignments.filter(a => a.employee_id === currentUser.id)} empUser={currentUser} onRefresh={fetchData} />
+                  )}
+                  {activeSection === 'payrolls' && (
+                    <ContractorPayrolls payrolls={(data.payrolls || []).filter(p => p.employee_id === currentUser.id)} />
                   )}
                   {activeSection === 'notifications' && (
                     <EmployeeNotifications notifications={data.notifications} empUser={currentUser} onRefresh={fetchData} />
                   )}
                 </>
+              )}
+
+              {/* CLIENT PORTAL */}
+              {currentRole === 'CLIENT' && (
+                <ClientPortal clientUser={currentUser} />
               )}
             </>
           )}

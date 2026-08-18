@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 import { query } from '../db/db.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'workday_vendor_product_secret_key_2026';
@@ -22,8 +23,16 @@ export async function handleAuth(req, pathSegments) {
 
     const user = res.rows[0];
 
-    // Password verification (Default password is 'password123')
-    const validPassword = (user.password || 'password123') === password.trim();
+    // Verify password — supports bcrypt hashed passwords
+    // Falls back to plain-text comparison for legacy records during migration
+    const storedPassword = user.password || '';
+    let validPassword = false;
+    if (storedPassword.startsWith('$2b$') || storedPassword.startsWith('$2a$')) {
+      validPassword = bcrypt.compareSync(password.trim(), storedPassword);
+    } else {
+      validPassword = storedPassword === password.trim();
+    }
+
     if (!validPassword) {
       return { status: 401, body: { error: 'Invalid email or password.' } };
     }

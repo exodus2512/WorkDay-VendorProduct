@@ -39,18 +39,17 @@ export async function handleTimesheets(req, pathSegments, queryParams) {
     `;
 
     let res;
-    if (empId) {
+    if (empId && pmId) {
+      res = await query(`${baseQuery} WHERE t.employee_id = $1 AND p.project_manager_id = $2 ORDER BY t.id DESC`, [empId, pmId]);
+    } else if (empId) {
       res = await query(`${baseQuery} WHERE t.employee_id = $1 ORDER BY t.id DESC`, [empId]);
+    } else if (pmId) {
+      res = await query(`${baseQuery} WHERE p.project_manager_id = $1 ORDER BY t.id DESC`, [pmId]);
     } else {
       res = await query(`${baseQuery} ORDER BY t.id DESC`);
     }
 
-    let rows = res.rows;
-    if (pmId) {
-      rows = rows.filter(t => t.pm_id === parseInt(pmId, 10));
-    }
-
-    return { status: 200, body: rows };
+    return { status: 200, body: res.rows };
   }
 
   if (method === 'POST') {
@@ -113,7 +112,21 @@ export async function handleTimesheets(req, pathSegments, queryParams) {
       }
     }
 
-    return { status: 201, body: newTs };
+    // Return joined row so the frontend list renders with project_name, billing_rate, etc.
+    const joinedRes = await query(`
+      SELECT t.*,
+        p.id AS project_id, p.name AS project_name, p.client_name,
+        p.project_manager_id AS pm_id,
+        u.name AS employee_name,
+        a.billing_rate, a.weekly_hour_limit
+      FROM timesheets t
+      LEFT JOIN assignments a ON a.id = t.assignment_id
+      LEFT JOIN projects p ON p.id = a.project_id
+      LEFT JOIN users u ON u.id = t.employee_id
+      WHERE t.id = $1
+    `, [newTs.id]);
+
+    return { status: 201, body: joinedRes.rows[0] };
   }
 
   if (method === 'PUT' && id) {

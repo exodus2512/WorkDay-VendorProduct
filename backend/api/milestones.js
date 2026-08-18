@@ -1,5 +1,51 @@
 import { query } from '../db/db.js';
 
+// Helper function: Calculate contractor payroll according to timesheet hours and rate cards upon milestone approval
+async function processMilestoneContractorPayroll(milestone) {
+  if (!milestone || !milestone.id || !milestone.project_id) return;
+
+  try {
+    // 1. Check if payroll records already exist for this milestone to prevent duplicate payouts
+    const checkRes = await query('SELECT id FROM contractor_payrolls WHERE milestone_id = $1', [milestone.id]);
+    if (checkRes.rows.length > 0) return;
+
+    // 2. Fetch all assignments for this project
+    const assignRes = await query('SELECT * FROM assignments WHERE project_id = $1', [milestone.project_id]);
+    const assignments = assignRes.rows || [];
+
+    for (const assign of assignments) {
+      // 3. Sum approved/submitted timesheet hours for this assignment
+      const tsRes = await query(
+        "SELECT SUM(total_hours) AS sum_hours FROM timesheets WHERE assignment_id = $1 AND status IN ('APPROVED', 'SUBMITTED')",
+        [assign.id]
+      );
+
+      const totalHours = parseFloat(tsRes.rows[0]?.sum_hours || 0) || 0;
+      const billingRate = parseFloat(assign.billing_rate || 0) || 0;
+      const grossPay = totalHours * billingRate;
+
+      // 4. Insert contractor payroll record into DB
+      await query(
+        `INSERT INTO contractor_payrolls (milestone_id, project_id, employee_id, assignment_id, total_hours, billing_rate, gross_pay, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [milestone.id, milestone.project_id, assign.employee_id, assign.id, totalHours, billingRate, grossPay, 'PROCESSED']
+      );
+
+      // 5. Notify the contractor
+      await query(
+        `INSERT INTO notifications (user_id, message, type) VALUES ($1, $2, $3)`,
+        [
+          assign.employee_id,
+          `Payroll Processed: Milestone "${milestone.name}" approved. Earned $${grossPay.toLocaleString()} (${totalHours} hrs @ $${billingRate}/hr).`,
+          'PAYROLL_PROCESSED'
+        ]
+      );
+    }
+  } catch (err) {
+    console.error('Error generating contractor payrolls for milestone:', err);
+  }
+}
+
 export async function handleMilestones(req, pathSegments, queryParams) {
   const method = req.method;
   const id = pathSegments[0]; // /api/milestones or /api/milestones/:id
@@ -48,6 +94,9 @@ export async function handleMilestones(req, pathSegments, queryParams) {
       );
       if (res.rows.length === 0) return { status: 404, body: { error: 'Milestone not found' } };
       const m = res.rows[0];
+
+      // Auto-generate contractor payroll entries based on timesheets & rate card
+      await processMilestoneContractorPayroll(m);
 
       if (m.submitted_by) {
         await query(
@@ -113,6 +162,10 @@ export async function handleMilestones(req, pathSegments, queryParams) {
       `UPDATE milestones SET status = $1, rejection_reason = $2 WHERE id = $3 RETURNING *`,
       [status, rejection_reason || null, id]
     );
+
+    if (status === 'APPROVED' && res.rows.length > 0) {
+      await processMilestoneContractorPayroll(res.rows[0]);
+    }
 
     return { status: 200, body: res.rows[0] };
   }

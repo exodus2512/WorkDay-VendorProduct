@@ -158,8 +158,24 @@ export default function Login({ onLoginSuccess }) {
                 </div>
                 <span className="text-[10px] font-semibold text-indigo-400 group-hover:underline">Auto-fill →</span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => handleQuickFill('client@client.com', 'client')}
+                className="w-full p-2.5 rounded-xl border border-rose-900/50 bg-rose-950/30 hover:bg-rose-900/40 text-left transition-all flex items-center justify-between group"
+              >
+                <div>
+                  <p className="text-xs font-bold text-rose-300">Client Portal</p>
+                  <p className="text-[10px] text-slate-400">client@client.com · pass: client</p>
+                </div>
+                <span className="text-[10px] font-semibold text-rose-400 group-hover:underline">Auto-fill →</span>
+              </button>
             </div>
-            <p className="text-[10px] text-slate-500 text-center mt-3 font-medium">Default Password: <code className="bg-slate-900 px-1.5 py-0.5 rounded text-sky-400">password123</code></p>
+            <p className="text-[10px] text-slate-500 text-center mt-3 font-medium">
+              Staff password: <code className="bg-slate-900 px-1.5 py-0.5 rounded text-sky-400">password123</code>
+              &nbsp;·&nbsp;
+              Client password: <code className="bg-slate-900 px-1.5 py-0.5 rounded text-rose-400">client</code>
+            </p>
           </div>
         </div>
       </div>

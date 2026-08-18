@@ -1,21 +1,22 @@
--- Seed Data for Contingent Workforce & Timesheet Tracker MVP
-
--- Users (1 Admin, 2 PMs, 8 Employees)
+-- Users (1 Admin, 2 PMs, 8 Employees, 1 Client)
+-- Passwords are bcrypt-hashed. Default staff password: password123 | Client password: client
 INSERT INTO users (id, name, email, password, role, status, skills, availability) VALUES
-(1, 'Eleanor Vance', 'eleanor.vance@vendorcorp.com', 'password123', 'VENDOR_ADMIN', 'ACTIVE', 'Workforce Planning, Vendor Management, Executive Billing', 'FULL_TIME'),
-(2, 'Sarah Jenkins', 'sarah.j@vendorcorp.com', 'password123', 'PROJECT_MANAGER', 'ACTIVE', 'Agile Delivery, Cloud Architecture, Scrum', 'FULL_TIME'),
-(3, 'David Miller', 'david.m@vendorcorp.com', 'password123', 'PROJECT_MANAGER', 'ACTIVE', 'ERP Implementation, Financial Tech, Technical Lead', 'FULL_TIME'),
-(4, 'Alex Rivera', 'alex.rivera@contractor.io', 'password123', 'EMPLOYEE', 'ACTIVE', 'React, Next.js, Tailwind CSS, Node.js', 'FULL_TIME'),
-(5, 'Marcus Chen', 'marcus.chen@contractor.io', 'password123', 'EMPLOYEE', 'ACTIVE', 'PostgreSQL, Database Tuning, Go, Backend API', 'FULL_TIME'),
-(6, 'Elena Rostova', 'elena.rostova@contractor.io', 'password123', 'EMPLOYEE', 'ACTIVE', 'UI/UX Design, Figma, Design Systems, Frontend', 'PART_TIME'),
-(7, 'Devon Smith', 'devon.smith@contractor.io', 'password123', 'EMPLOYEE', 'ACTIVE', 'DevOps, Kubernetes, AWS, Terraform', 'FULL_TIME'),
-(8, 'Priya Patel', 'priya.patel@contractor.io', 'password123', 'EMPLOYEE', 'ACTIVE', 'QA Automation, Cypress, Jest, Integration Testing', 'FULL_TIME'),
-(9, 'Jordan Lee', 'jordan.lee@contractor.io', 'password123', 'EMPLOYEE', 'ACTIVE', 'Python, Data Analytics, ETL, Snowflake', 'FULL_TIME'),
-(10, 'Sam Taylor', 'sam.taylor@contractor.io', 'password123', 'EMPLOYEE', 'UNAVAILABLE', 'iOS, Swift, Mobile Security', 'UNAVAILABLE'),
-(11, 'Taylor Reed', 'taylor.reed@contractor.io', 'password123', 'EMPLOYEE', 'ACTIVE', 'Fullstack JavaScript, GraphQL, Micro-frontends', 'FULL_TIME');
+(1,  'Eleanor Vance',  'eleanor.vance@vendorcorp.com',  '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', 'VENDOR_ADMIN',    'ACTIVE',      'Workforce Planning, Vendor Management, Executive Billing',   'FULL_TIME'),
+(2,  'Sarah Jenkins',  'sarah.j@vendorcorp.com',        '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', 'PROJECT_MANAGER', 'ACTIVE',      'Agile Delivery, Cloud Architecture, Scrum',                 'FULL_TIME'),
+(3,  'David Miller',   'david.m@vendorcorp.com',        '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', 'PROJECT_MANAGER', 'ACTIVE',      'ERP Implementation, Financial Tech, Technical Lead',          'FULL_TIME'),
+(4,  'Alex Rivera',    'alex.rivera@contractor.io',     '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', 'EMPLOYEE',        'ACTIVE',      'React, Next.js, Tailwind CSS, Node.js',                      'FULL_TIME'),
+(5,  'Marcus Chen',    'marcus.chen@contractor.io',     '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', 'EMPLOYEE',        'ACTIVE',      'PostgreSQL, Database Tuning, Go, Backend API',                'FULL_TIME'),
+(6,  'Elena Rostova',  'elena.rostova@contractor.io',   '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', 'EMPLOYEE',        'ACTIVE',      'UI/UX Design, Figma, Design Systems, Frontend',              'PART_TIME'),
+(7,  'Devon Smith',    'devon.smith@contractor.io',     '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', 'EMPLOYEE',        'ACTIVE',      'DevOps, Kubernetes, AWS, Terraform',                         'FULL_TIME'),
+(8,  'Priya Patel',    'priya.patel@contractor.io',     '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', 'EMPLOYEE',        'ACTIVE',      'QA Automation, Cypress, Jest, Integration Testing',          'FULL_TIME'),
+(9,  'Jordan Lee',     'jordan.lee@contractor.io',      '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', 'EMPLOYEE',        'ACTIVE',      'Python, Data Analytics, ETL, Snowflake',                     'FULL_TIME'),
+(10, 'Sam Taylor',     'sam.taylor@contractor.io',      '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', 'EMPLOYEE',        'UNAVAILABLE', 'iOS, Swift, Mobile Security',                                'UNAVAILABLE'),
+(11, 'Taylor Reed',    'taylor.reed@contractor.io',     '$2b$10$Drrm/mF5exDz6/Yg7IiCLOE5DuQ2e.gcnH/EVx7vGvIbMCRulE4Rm', 'EMPLOYEE',        'ACTIVE',      'Fullstack JavaScript, GraphQL, Micro-frontends',             'FULL_TIME'),
+(12, 'Client Corp',    'client@client.com',             '$2b$10$.O/fW8bu7/nPtn1jJP9hpOcVIWh5yOne674cZ.I6HmuzUuOwR4WaW',  'CLIENT',          'ACTIVE',      'Project Commissioning',                                      'FULL_TIME');
 
 -- Reset user sequence
-SELECT setval('users_id_seq', 11, true);
+SELECT setval('users_id_seq', 12, true);
+
 
 -- Projects
 INSERT INTO projects (id, name, client_name, description, budget, start_date, end_date, status, project_manager_id) VALUES
@@ -112,3 +113,12 @@ INSERT INTO notifications (id, user_id, message, type, read) VALUES
 
 -- Reset notification sequence
 SELECT setval('notifications_id_seq', 5, true);
+
+-- Contractor Payrolls
+INSERT INTO contractor_payrolls (id, milestone_id, project_id, employee_id, assignment_id, total_hours, billing_rate, gross_pay, status) VALUES
+(1, 1, 1, 4, 1, 40.00, 85.00, 3400.00, 'PROCESSED'),
+(2, 1, 1, 5, 2, 40.00, 95.00, 3800.00, 'PROCESSED');
+
+-- Reset contractor_payrolls sequence
+SELECT setval('contractor_payrolls_id_seq', 2, true);
+

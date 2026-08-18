@@ -1,4 +1,5 @@
 import { query } from '../db/db.js';
+import bcrypt from 'bcryptjs';
 
 export async function handleEmployees(req, pathSegments, queryParams) {
   const method = req.method;
@@ -6,7 +7,10 @@ export async function handleEmployees(req, pathSegments, queryParams) {
 
   if (method === 'GET') {
     if (id) {
-      const res = await query('SELECT * FROM users WHERE id = $1', [id]);
+      const res = await query(
+        'SELECT id, name, email, role, status, skills, availability, created_at FROM users WHERE id = $1',
+        [id]
+      );
       if (res.rows.length === 0) return { status: 404, body: { error: 'Employee not found' } };
       return { status: 200, body: res.rows[0] };
     }
@@ -14,9 +18,16 @@ export async function handleEmployees(req, pathSegments, queryParams) {
     const role = queryParams.get('role');
     let res;
     if (role) {
-      res = await query('SELECT * FROM users WHERE role = $1 ORDER BY name ASC', [role]);
+      // Specific role filter (e.g. ?role=PROJECT_MANAGER for PM dropdown)
+      res = await query(
+        'SELECT id, name, email, role, status, skills, availability, created_at FROM users WHERE role = $1 ORDER BY name ASC',
+        [role]
+      );
     } else {
-      res = await query("SELECT * FROM users WHERE role IN ('EMPLOYEE', 'PROJECT_MANAGER') ORDER BY name ASC");
+      // Default: return all operational users (exclude CLIENT accounts from workforce list)
+      res = await query(
+        "SELECT id, name, email, role, status, skills, availability, created_at FROM users WHERE role IN ('EMPLOYEE', 'PROJECT_MANAGER', 'VENDOR_ADMIN') ORDER BY name ASC"
+      );
     }
     return { status: 200, body: res.rows };
   }
@@ -27,10 +38,13 @@ export async function handleEmployees(req, pathSegments, queryParams) {
     if (!name || !email) {
       return { status: 400, body: { error: 'Name and email are required.' } };
     }
+    // Always hash the password before storing — never store plain-text
+    const rawPassword = password || 'password123';
+    const hashedPassword = bcrypt.hashSync(rawPassword, 10);
     const res = await query(
       `INSERT INTO users (name, email, password, role, status, skills, availability)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [name, email, password || 'password123', role || 'EMPLOYEE', status || 'ACTIVE', skills || '', availability || 'FULL_TIME']
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, name, email, role, status, skills, availability, created_at`,
+      [name, email, hashedPassword, role || 'EMPLOYEE', status || 'ACTIVE', skills || '', availability || 'FULL_TIME']
     );
     return { status: 201, body: res.rows[0] };
   }
@@ -40,9 +54,10 @@ export async function handleEmployees(req, pathSegments, queryParams) {
     const { name, email, skills, availability, status } = body;
     const res = await query(
       `UPDATE users SET name = $1, email = $2, skills = $3, availability = $4, status = $5
-       WHERE id = $6 RETURNING *`,
+       WHERE id = $6 RETURNING id, name, email, role, status, skills, availability, created_at`,
       [name, email, skills, availability, status, id]
     );
+    if (res.rows.length === 0) return { status: 404, body: { error: 'User not found.' } };
     return { status: 200, body: res.rows[0] };
   }
 

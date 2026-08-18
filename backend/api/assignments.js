@@ -50,19 +50,38 @@ export async function handleAssignments(req, pathSegments, queryParams) {
       return { status: 400, body: { error: `Cannot assign employee ${empRes.rows[0].name}. Contractor status is set to UNAVAILABLE.` } };
     }
 
-    const res = await query(
+    // Fetch project name for the notification
+    const projRes = await query('SELECT name FROM projects WHERE id = $1', [project_id]);
+    const projectName = projRes.rows[0]?.name || 'a project';
+
+    const insertRes = await query(
       `INSERT INTO assignments (project_id, employee_id, role, start_date, end_date, billing_rate, weekly_hour_limit, status)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
       [project_id, employee_id, role, start_date, end_date, billing_rate, weekly_hour_limit || 40, 'ACTIVE']
     );
 
-    // Create system notification for employee
+    const newId = insertRes.rows[0].id;
+
+    // Notify the employee with the actual project name
     await query(
       `INSERT INTO notifications (user_id, message, type) VALUES ($1, $2, $3)`,
-      [employee_id, `You have been assigned to project as ${role} at $${billing_rate}/hr.`, 'ASSIGNMENT_CREATED']
+      [employee_id, `You have been assigned to "${projectName}" as ${role} at $${billing_rate}/hr.`, 'ASSIGNMENT_CREATED']
     );
 
-    return { status: 201, body: res.rows[0] };
+    // Return joined row so frontend table renders correctly without a full refresh
+    const finalRes = await query(`
+      SELECT a.*,
+        p.name AS project_name, p.client_name,
+        u.name AS employee_name, u.email AS employee_email,
+        pm.name AS pm_name, p.project_manager_id AS pm_id
+      FROM assignments a
+      LEFT JOIN projects p ON p.id = a.project_id
+      LEFT JOIN users u ON u.id = a.employee_id
+      LEFT JOIN users pm ON pm.id = p.project_manager_id
+      WHERE a.id = $1
+    `, [newId]);
+
+    return { status: 201, body: finalRes.rows[0] };
   }
 
   if (method === 'PUT' && id) {

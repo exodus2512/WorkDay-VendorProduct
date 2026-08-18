@@ -6,6 +6,7 @@ import { handleTimesheets } from '../../../backend/api/timesheets.js';
 import { handleMilestones } from '../../../backend/api/milestones.js';
 import { handleInvoices } from '../../../backend/api/invoices.js';
 import { handleNotifications } from '../../../backend/api/notifications.js';
+import { handlePayrolls } from '../../../backend/api/payrolls.js';
 import { handleSeed } from '../../../backend/api/seed.js';
 import { handleAuth } from '../../../backend/api/auth.js';
 
@@ -42,6 +43,9 @@ async function routeHandler(req, { params }) {
         break;
       case 'notifications':
         result = await handleNotifications(req, subSegments, searchParams);
+        break;
+      case 'payrolls':
+        result = await handlePayrolls(req, subSegments, searchParams);
         break;
       case 'seed':
         result = await handleSeed(req);
