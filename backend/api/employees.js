@@ -16,19 +16,26 @@ export async function handleEmployees(req, pathSegments, queryParams) {
     }
 
     const role = queryParams.get('role');
-    let res;
+    const vendorId = queryParams.get('vendor_id');
+
+    let whereClauses = [];
+    let params = [];
+
     if (role) {
-      // Specific role filter (e.g. ?role=PROJECT_MANAGER for PM dropdown)
-      res = await query(
-        'SELECT id, name, email, role, status, skills, availability, created_at FROM users WHERE role = $1 ORDER BY name ASC',
-        [role]
-      );
+      params.push(role);
+      whereClauses.push(`role = $${params.length}`);
     } else {
-      // Default: return all operational users (exclude CLIENT accounts from workforce list)
-      res = await query(
-        "SELECT id, name, email, role, status, skills, availability, created_at FROM users WHERE role IN ('EMPLOYEE', 'PROJECT_MANAGER', 'VENDOR_ADMIN') ORDER BY name ASC"
-      );
+      whereClauses.push(`role IN ('EMPLOYEE', 'PROJECT_MANAGER', 'VENDOR_ADMIN')`);
     }
+
+    if (vendorId) {
+      params.push(vendorId);
+      whereClauses.push(`vendor_id = $${params.length}`);
+    }
+
+    const whereStr = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const res = await query(`SELECT id, name, email, role, status, skills, availability, created_at, vendor_id FROM users ${whereStr} ORDER BY name ASC`, params);
+    
     return { status: 200, body: res.rows };
   }
 

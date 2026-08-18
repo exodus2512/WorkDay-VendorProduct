@@ -1,4 +1,4 @@
-# WorkDay - Contingent Workforce & Timesheet Tracker MVP
+# WorkForce - Contingent Workforce & Timesheet Tracker MVP
 
 Production-style hackathon MVP for contingent workforce management, timesheet logging, milestone billing, and automated invoice validation using **Next.js (App Router)**, **JavaScript**, **Tailwind CSS**, and **Neon PostgreSQL**.
 

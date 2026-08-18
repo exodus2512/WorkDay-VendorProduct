@@ -49,17 +49,17 @@ export default function Login({ onLoginSuccess }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="inline-flex items-center justify-center p-3.5 bg-sky-600 text-white rounded-2xl shadow-xl shadow-sky-900/50 mb-4">
+        <div className="inline-flex items-center justify-center p-3.5 bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-600/30 mb-4">
           <Building2 className="w-8 h-8" />
         </div>
-        <h2 className="text-3xl font-extrabold text-white tracking-tight">WorkDay Platform</h2>
-        <p className="mt-2 text-sm text-slate-400">Contingent Workforce, Timesheets & Milestone Billing</p>
+        <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">WorkForce Platform</h2>
+        <p className="mt-2 text-sm text-slate-500">Contingent Workforce, Timesheets & Milestone Billing</p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
-        <div className="bg-slate-950/80 backdrop-blur-md border border-slate-800 py-8 px-6 shadow-2xl rounded-2xl sm:px-10">
+        <div className="bg-white border border-slate-200 py-8 px-6 shadow-xl shadow-slate-200/50 rounded-2xl sm:px-10">
           <form className="space-y-5" onSubmit={handleLogin}>
             {error && (
               <Alert type="danger" title="Authentication Error">
@@ -68,7 +68,7 @@ export default function Login({ onLoginSuccess }) {
             )}
 
             <div>
-              <label htmlFor="email" className="block text-xs font-semibold uppercase text-slate-300 mb-1.5">
+              <label htmlFor="email" className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
                 Email Address
               </label>
               <div className="relative">
@@ -82,13 +82,13 @@ export default function Login({ onLoginSuccess }) {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@company.com"
-                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-900 border border-slate-700 text-white placeholder-slate-500 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                 />
               </div>
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-xs font-semibold uppercase text-slate-300 mb-1.5">
+              <label htmlFor="password" className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
                 Password
               </label>
               <div className="relative">
@@ -102,79 +102,86 @@ export default function Login({ onLoginSuccess }) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-900 border border-slate-700 text-white placeholder-slate-500 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 text-slate-900 placeholder-slate-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                 />
               </div>
             </div>
 
             <Button
               type="submit"
-              variant="primary"
-              loading={loading}
-              className="w-full py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-sky-900/50"
+              disabled={loading}
+              className="w-full flex justify-center py-2.5 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/30 rounded-xl font-bold"
             >
-              Sign In to Workspace <ArrowRight className="w-4 h-4" />
+              Sign In to Workspace <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </form>
 
           {/* Quick Demo Login Auto-Fill Chips */}
-          <div className="mt-8 border-t border-slate-800/80 pt-6">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 text-center mb-3">
-              ⚡ Quick Demo Persona Login:
-            </p>
-            <div className="grid grid-cols-1 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickFill('eleanor.vance@vendorcorp.com')}
-                className="w-full p-2.5 rounded-xl border border-sky-900/50 bg-sky-950/30 hover:bg-sky-900/40 text-left transition-all flex items-center justify-between group"
-              >
-                <div>
-                  <p className="text-xs font-bold text-sky-300">Vendor Admin</p>
-                  <p className="text-[10px] text-slate-400">eleanor.vance@vendorcorp.com</p>
+          <div className="mt-8 pt-6 border-t border-slate-200">
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Quick Access Credentials</h3>
+            
+            <div className="space-y-3">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 hover:border-blue-300 transition-colors cursor-pointer" onClick={() => handleQuickFill('eleanor.vance@vendorcorp.com')}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                    <span className="text-sm font-bold text-slate-900">Vendor Admin</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded uppercase tracking-wide">Full Access</span>
                 </div>
-                <span className="text-[10px] font-semibold text-sky-400 group-hover:underline">Auto-fill →</span>
-              </button>
+                <p className="text-xs text-slate-500 mb-3">Manages workforce, billing, projects, and vendor settings.</p>
+                <div className="flex items-center justify-between text-xs font-mono text-slate-600 bg-slate-200 px-3 py-1.5 rounded-md">
+                  <span>eleanor.vance@vendorcorp.com</span>
+                  <KeyRound className="w-3.5 h-3.5 text-slate-400" />
+                </div>
+              </div>
 
-              <button
-                type="button"
-                onClick={() => handleQuickFill('sarah.j@vendorcorp.com')}
-                className="w-full p-2.5 rounded-xl border border-emerald-900/50 bg-emerald-950/30 hover:bg-emerald-900/40 text-left transition-all flex items-center justify-between group"
-              >
-                <div>
-                  <p className="text-xs font-bold text-emerald-300">Project Manager</p>
-                  <p className="text-[10px] text-slate-400">sarah.j@vendorcorp.com</p>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 hover:border-blue-300 transition-colors cursor-pointer" onClick={() => handleQuickFill('sarah.j@vendorcorp.com')}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm font-bold text-slate-900">Project Manager</span>
+                  </div>
                 </div>
-                <span className="text-[10px] font-semibold text-emerald-400 group-hover:underline">Auto-fill →</span>
-              </button>
+                <p className="text-xs text-slate-500 mb-3">Approves timesheets, milestones, and assigns workforce.</p>
+                <div className="flex items-center justify-between text-xs font-mono text-slate-600 bg-slate-200 px-3 py-1.5 rounded-md">
+                  <span>sarah.j@vendorcorp.com</span>
+                  <KeyRound className="w-3.5 h-3.5 text-slate-400" />
+                </div>
+              </div>
 
-              <button
-                type="button"
-                onClick={() => handleQuickFill('alex.rivera@contractor.io')}
-                className="w-full p-2.5 rounded-xl border border-indigo-900/50 bg-indigo-950/30 hover:bg-indigo-900/40 text-left transition-all flex items-center justify-between group"
-              >
-                <div>
-                  <p className="text-xs font-bold text-indigo-300">Employee / Contractor</p>
-                  <p className="text-[10px] text-slate-400">alex.rivera@contractor.io</p>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 hover:border-blue-300 transition-colors cursor-pointer" onClick={() => handleQuickFill('alex.rivera@contractor.io')}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-violet-500" />
+                    <span className="text-sm font-bold text-slate-900">Contractor / Employee</span>
+                  </div>
                 </div>
-                <span className="text-[10px] font-semibold text-indigo-400 group-hover:underline">Auto-fill →</span>
-              </button>
+                <p className="text-xs text-slate-500 mb-3">Logs timesheets, submits milestones, views active projects.</p>
+                <div className="flex items-center justify-between text-xs font-mono text-slate-600 bg-slate-200 px-3 py-1.5 rounded-md">
+                  <span>alex.rivera@contractor.io</span>
+                  <KeyRound className="w-3.5 h-3.5 text-slate-400" />
+                </div>
+              </div>
 
-              <button
-                type="button"
-                onClick={() => handleQuickFill('client@client.com', 'client')}
-                className="w-full p-2.5 rounded-xl border border-rose-900/50 bg-rose-950/30 hover:bg-rose-900/40 text-left transition-all flex items-center justify-between group"
-              >
-                <div>
-                  <p className="text-xs font-bold text-rose-300">Client Portal</p>
-                  <p className="text-[10px] text-slate-400">client@client.com · pass: client</p>
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 hover:border-blue-300 transition-colors cursor-pointer" onClick={() => handleQuickFill('client@client.com', 'client')}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-500" />
+                    <span className="text-sm font-bold text-slate-900">Client Organization</span>
+                  </div>
                 </div>
-                <span className="text-[10px] font-semibold text-rose-400 group-hover:underline">Auto-fill →</span>
-              </button>
+                <p className="text-xs text-slate-500 mb-3">Creates project requirements and views project status.</p>
+                <div className="flex items-center justify-between text-xs font-mono text-slate-600 bg-slate-200 px-3 py-1.5 rounded-md">
+                  <span>client@client.com</span>
+                  <KeyRound className="w-3.5 h-3.5 text-slate-400" />
+                </div>
+              </div>
             </div>
-            <p className="text-[10px] text-slate-500 text-center mt-3 font-medium">
-              Staff password: <code className="bg-slate-900 px-1.5 py-0.5 rounded text-sky-400">password123</code>
+            <p className="text-[10px] text-slate-500 text-center mt-4 font-medium">
+              Staff password: <code className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-blue-600">password123</code>
               &nbsp;·&nbsp;
-              Client password: <code className="bg-slate-900 px-1.5 py-0.5 rounded text-rose-400">client</code>
+              Client password: <code className="bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-rose-500">client</code>
             </p>
           </div>
         </div>

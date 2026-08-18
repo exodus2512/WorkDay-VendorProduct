@@ -63,7 +63,7 @@ export default function Sidebar({ currentRole, activeSection, onSelectSection })
           <Building2 className="w-6 h-6" />
         </div>
         <div>
-          <h1 className="font-extrabold text-white text-lg tracking-tight leading-tight">WorkDay</h1>
+          <h1 className="font-extrabold text-white text-lg tracking-tight leading-tight">WorkForce</h1>
           <p className="text-xs text-sky-400 font-medium">Contingent Workforce</p>
         </div>
       </div>

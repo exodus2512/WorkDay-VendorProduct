@@ -9,6 +9,7 @@ import {
 export default function ClientPortal({ clientUser, onRefresh }) {
   const [activeTab, setActiveTab] = useState('submit');
   const [myProjects, setMyProjects] = useState([]);
+  const [availablePMs, setAvailablePMs] = useState([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -20,6 +21,7 @@ export default function ClientPortal({ clientUser, onRefresh }) {
     budget: '',
     start_date: new Date().toISOString().split('T')[0],
     end_date: '',
+    project_manager_id: ''
   });
 
   // Milestones form state (inline milestones as part of project submission)
@@ -27,24 +29,30 @@ export default function ClientPortal({ clientUser, onRefresh }) {
     { name: '', description: '', amount: '', due_date: '' }
   ]);
 
-  // Load client's projects
-  const loadMyProjects = async () => {
+  // Load client's projects and available PMs
+  const loadMyProjectsAndPMs = async () => {
     setLoadingProjects(true);
     try {
-      const res = await fetch(`/api/projects?client_user_id=${clientUser.id}`);
-      const data = await res.json();
+      const [projRes, pmRes] = await Promise.all([
+        fetch(`/api/projects?client_user_id=${clientUser.id}`),
+        fetch(`/api/employees?role=PROJECT_MANAGER&vendor_id=${clientUser.vendor_id}`)
+      ]);
+      const projData = await projRes.json();
+      const pmData = await pmRes.json();
+
       // Filter by client_name matching the user's name
-      const mine = Array.isArray(data) ? data.filter(p => p.client_name === clientUser.name) : [];
+      const mine = Array.isArray(projData) ? projData.filter(p => p.client_name === clientUser.name) : [];
       setMyProjects(mine);
+      setAvailablePMs(Array.isArray(pmData) ? pmData : []);
     } catch (err) {
-      console.error('Failed to load client projects:', err);
+      console.error('Failed to load client projects or PMs:', err);
     } finally {
       setLoadingProjects(false);
     }
   };
 
   useEffect(() => {
-    if (activeTab === 'projects') loadMyProjects();
+    if (activeTab === 'projects' || activeTab === 'submit') loadMyProjectsAndPMs();
   }, [activeTab]);
 
   const handleMilestoneChange = (index, field, value) => {
@@ -87,6 +95,9 @@ export default function ClientPortal({ clientUser, onRefresh }) {
           budget: form.budget,
           start_date: form.start_date,
           end_date: form.end_date,
+          project_manager_id: form.project_manager_id || null,
+          vendor_id: clientUser.vendor_id,
+          client_id: clientUser.client_id,
           status: 'PENDING'
         })
       });
@@ -117,7 +128,7 @@ export default function ClientPortal({ clientUser, onRefresh }) {
       }
 
       setSubmitSuccess(true);
-      setForm({ name: '', description: '', budget: '', start_date: new Date().toISOString().split('T')[0], end_date: '' });
+      setForm({ name: '', description: '', budget: '', start_date: new Date().toISOString().split('T')[0], end_date: '', project_manager_id: '' });
       setMilestones([{ name: '', description: '', amount: '', due_date: '' }]);
       if (onRefresh) onRefresh();
     } catch (err) {
@@ -229,6 +240,20 @@ export default function ClientPortal({ clientUser, onRefresh }) {
                     value={form.end_date}
                     onChange={e => setForm({ ...form, end_date: e.target.value })}
                   />
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Assign Project Manager *</label>
+                    <select
+                      required
+                      value={form.project_manager_id}
+                      onChange={(e) => setForm({ ...form, project_manager_id: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-sm bg-white"
+                    >
+                      <option value="">Select a Manager</option>
+                      {availablePMs.map(pm => (
+                        <option key={pm.id} value={pm.id}>{pm.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
             </Card>

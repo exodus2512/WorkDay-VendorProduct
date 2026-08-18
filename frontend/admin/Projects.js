@@ -37,10 +37,7 @@ function getProjectHealth(project, milestones, assignments) {
 
 export default function AdminProjects({ projects = [], pms = [], milestones = [], assignments = [], onRefresh }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [assignPmModal, setAssignPmModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
-  const [pmTargetProject, setPmTargetProject] = useState(null);
-  const [selectedPmId, setSelectedPmId] = useState('');
   const [formData, setFormData] = useState({
     name: '', client_name: '', description: '', budget: '',
     start_date: new Date().toISOString().split('T')[0], end_date: '', project_manager_id: ''
@@ -57,24 +54,12 @@ export default function AdminProjects({ projects = [], pms = [], milestones = []
   };
 
   const handleStatusChange = async (projectId, action) => {
-    await fetch(`/api/projects/${projectId}`, {
+    const res = await fetch(`/api/projects/${projectId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action })
     });
-    if (onRefresh) onRefresh();
-  };
-
-  const handleAssignPmSubmit = async (e) => {
-    e.preventDefault();
-    if (!pmTargetProject || !selectedPmId) return;
-    await fetch(`/api/projects/${pmTargetProject.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'ASSIGN_PM', project_manager_id: parseInt(selectedPmId, 10) })
-    });
-    setAssignPmModal(false);
-    if (onRefresh) onRefresh();
+    if (res.ok && onRefresh) onRefresh();
   };
 
   const activeProjects   = projects.filter(p => p.status === 'ACTIVE');
@@ -175,12 +160,6 @@ export default function AdminProjects({ projects = [], pms = [], milestones = []
                       <div className="min-w-0">
                         <p className="text-xs text-slate-400 font-medium">Project Manager</p>
                         <p className="text-sm font-bold text-slate-800 truncate">{project.pm_name || 'Unassigned'}</p>
-                        <button
-                          onClick={() => { setPmTargetProject(project); setSelectedPmId(project.project_manager_id || ''); setAssignPmModal(true); }}
-                          className="text-xs font-semibold text-violet-600 hover:text-violet-800 underline mt-0.5"
-                        >
-                          {project.project_manager_id ? 'Reassign PM' : 'Assign PM →'}
-                        </button>
                       </div>
                     </div>
 
@@ -247,18 +226,6 @@ export default function AdminProjects({ projects = [], pms = [], milestones = []
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button variant="outline" type="button" onClick={() => setIsModalOpen(false)}>Cancel</Button>
             <Button variant="primary" type="submit">Create Project</Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Assign PM Modal */}
-      <Modal isOpen={assignPmModal} onClose={() => setAssignPmModal(false)} title={`Assign PM — ${pmTargetProject?.name}`}>
-        <form onSubmit={handleAssignPmSubmit} className="space-y-4">
-          <Select label="Select Project Manager" value={selectedPmId} onChange={e => setSelectedPmId(e.target.value)}
-            options={pms.map(pm => ({ value: pm.id, label: `${pm.name} (${pm.email})` }))} />
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button variant="outline" type="button" onClick={() => setAssignPmModal(false)}>Cancel</Button>
-            <Button variant="primary" type="submit">Save Assignment</Button>
           </div>
         </form>
       </Modal>

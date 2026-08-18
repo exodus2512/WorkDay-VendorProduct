@@ -1,10 +1,12 @@
 import { query } from '../db/db.js';
 
-// Reusable JOIN query — always returns pm_name alongside every project row
+// Reusable JOIN query — returns pm_name and vendor/client info alongside every project row
 const PROJECT_SELECT = `
-  SELECT p.*, u.name AS pm_name
+  SELECT p.*, u.name AS pm_name, v.name AS vendor_name, c.name AS client_org_name
   FROM projects p
   LEFT JOIN users u ON u.id = p.project_manager_id
+  LEFT JOIN vendors v ON v.id = p.vendor_id
+  LEFT JOIN clients c ON c.id = p.client_id
 `;
 
 // Helper: fetch a single project with pm_name after a mutation
@@ -26,28 +28,44 @@ export async function handleProjects(req, pathSegments, queryParams) {
     }
 
     const pmId = queryParams.get('pm_id');
-    let res;
-    if (pmId) {
-      res = await query(`${PROJECT_SELECT} WHERE p.project_manager_id = $1 ORDER BY p.id DESC`, [pmId]);
-    } else {
-      res = await query(`${PROJECT_SELECT} ORDER BY p.id DESC`);
+    const vendorId = queryParams.get('vendor_id');
+    const clientId = queryParams.get('client_id');
+
+    let whereClauses = [];
+    let params = [];
+
+    if (vendorId) {
+      params.push(vendorId);
+      whereClauses.push(`p.vendor_id = $${params.length}`);
     }
+    if (clientId) {
+      params.push(clientId);
+      whereClauses.push(`p.client_id = $${params.length}`);
+    }
+    if (pmId) {
+      params.push(pmId);
+      whereClauses.push(`p.project_manager_id = $${params.length}`);
+    }
+
+    let whereStr = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+    const res = await query(`${PROJECT_SELECT} ${whereStr} ORDER BY p.id DESC`, params);
+
     return { status: 200, body: res.rows };
   }
 
   // ── POST (Create) ─────────────────────────────────────────────────────────
   if (method === 'POST') {
     const body = await req.json();
-    const { name, client_name, description, budget, start_date, end_date, status, project_manager_id } = body;
+    const { name, client_name, description, budget, start_date, end_date, status, project_manager_id, vendor_id, client_id } = body;
 
     if (!name || !client_name || !start_date || !end_date) {
       return { status: 400, body: { error: 'Missing required fields: name, client_name, start_date, end_date' } };
     }
 
     const insert = await query(
-      `INSERT INTO projects (name, client_name, description, budget, start_date, end_date, status, project_manager_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-      [name, client_name, description || '', budget || 0, start_date, end_date, status || 'PENDING', project_manager_id || null]
+      `INSERT INTO projects (vendor_id, client_id, name, client_name, description, budget, start_date, end_date, status, project_manager_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+      [vendor_id || 1, client_id || 1, name, client_name, description || '', budget || 0, start_date, end_date, status || 'PENDING', project_manager_id || null]
     );
 
     // Return the full joined row so the frontend renders pm_name immediately
@@ -79,12 +97,13 @@ export async function handleProjects(req, pathSegments, queryParams) {
     }
 
     // Full field update
-    const { name, client_name, description, budget, start_date, end_date, status, project_manager_id } = body;
+    const { name, client_name, description, budget, start_date, end_date, status, project_manager_id, vendor_id, client_id } = body;
     await query(
       `UPDATE projects SET name = $1, client_name = $2, description = $3, budget = $4,
-         start_date = $5, end_date = $6, status = $7, project_manager_id = $8
-       WHERE id = $9`,
-      [name, client_name, description, budget, start_date, end_date, status, project_manager_id, id]
+         start_date = $5, end_date = $6, status = $7, project_manager_id = $8,
+         vendor_id = COALESCE($9, vendor_id), client_id = COALESCE($10, client_id)
+       WHERE id = $11`,
+      [name, client_name, description, budget, start_date, end_date, status, project_manager_id, vendor_id || null, client_id || null, id]
     );
     return { status: 200, body: await fetchProjectById(id) };
   }

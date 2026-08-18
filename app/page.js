@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Header from '../frontend/components/Header';
 import Sidebar from '../frontend/components/Sidebar';
 import Login from '../frontend/auth/Login';
+import LandingPage from '../frontend/LandingPage';
 import { LoadingSpinner } from '../frontend/components/UI';
 
 // Admin Views
@@ -36,6 +37,7 @@ export default function Home() {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
 
   // Application Data State
   const [data, setData] = useState({
@@ -123,9 +125,21 @@ export default function Home() {
     return <LoadingSpinner text="Checking authentication..." />;
   }
 
-  // Render Login page if not authenticated
+  // Render Landing page or Login if not authenticated
   if (!authToken || !currentUser) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
+    if (showLogin) {
+      return (
+        <div className="relative min-h-screen bg-slate-50 flex flex-col">
+          <div className="absolute top-6 left-6 z-10">
+            <button onClick={() => setShowLogin(false)} className="text-slate-500 hover:text-slate-900 font-medium text-sm flex items-center gap-2 transition-colors">
+              ← Back to Home
+            </button>
+          </div>
+          <Login onLoginSuccess={handleLoginSuccess} />
+        </div>
+      );
+    }
+    return <LandingPage onLoginClick={() => setShowLogin(true)} onSignupSuccess={handleLoginSuccess} />;
   }
 
   const currentRole = currentUser.role;
