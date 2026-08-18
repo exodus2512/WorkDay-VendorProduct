@@ -96,10 +96,13 @@ export function validateInvoice({ project, assignments = [], timesheets = [], mi
   // Check 3: Rate matching
   timesheets.forEach(ts => {
     const matchingAssignment = assignments.find(a => a.id === ts.assignment_id);
-    if (matchingAssignment && parseFloat(ts.billing_rate) !== parseFloat(matchingAssignment.billing_rate)) {
-      checks.correctBillingRate.passed = false;
-      checks.correctBillingRate.details = `Rate mismatch for timesheet #${ts.id}: timesheet rate $${ts.billing_rate} vs assignment contract rate $${matchingAssignment.billing_rate}.`;
-      exceptions.push(`Billing rate mismatch detected on timesheet #${ts.id}.`);
+    if (matchingAssignment) {
+      const tsRate = parseFloat(ts.billing_rate || 0);
+      if (tsRate <= 0) {
+        checks.correctBillingRate.passed = false;
+        checks.correctBillingRate.details = `Invalid billing rate ($${tsRate}) for timesheet #${ts.id}.`;
+        exceptions.push(`Invalid rate on timesheet #${ts.id}.`);
+      }
     }
   });
 

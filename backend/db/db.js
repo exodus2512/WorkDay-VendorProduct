@@ -406,11 +406,25 @@ function executeInMemoryQuery(queryString, params) {
         entries
       };
     });
+    if (q.includes('where t.id = any') || q.includes('where id = any')) {
+      const ids = Array.isArray(params[0]) ? params[0].map(n => parseInt(n, 10)) : [];
+      if (ids.length > 0) {
+        list = list.filter(t => ids.includes(t.id));
+      } else {
+        list = [];
+      }
+    }
+    if (q.includes('a.project_id =') || q.includes('project_id =')) {
+      const pId = parseInt(params[params.length - 1] || params[0], 10);
+      if (pId) {
+        list = list.filter(t => t.project_id === pId);
+      }
+    }
     if (q.includes('where employee_id =')) {
       const empId = parseInt(params[0], 10);
       list = list.filter(t => t.employee_id === empId);
     }
-    if (q.includes('where id =')) {
+    if (q.includes('where id =') && !q.includes('where id = any')) {
       const id = parseInt(params[0], 10);
       list = list.filter(t => t.id === id);
     }

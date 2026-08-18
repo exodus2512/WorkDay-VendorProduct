@@ -74,8 +74,8 @@ export async function handleInvoices(req, pathSegments, queryParams) {
       FROM timesheets t
       LEFT JOIN assignments a ON a.id = t.assignment_id
       LEFT JOIN users u ON u.id = t.employee_id
-      WHERE t.id = ANY($1)
-      `, [timesheet_ids]);
+      WHERE t.id = ANY($1) AND a.project_id = $2
+      `, [timesheet_ids, project_id]);
       const timesheets = tsRes.rows;
 
       const msAll = await query('SELECT * FROM milestones');

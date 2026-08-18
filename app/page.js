@@ -186,7 +186,7 @@ export default function Home() {
                     <AdminAssignments assignments={data.assignments} projects={data.projects} contractors={contractors} onRefresh={fetchData} />
                   )}
                   {activeSection === 'billing' && (
-                    <AdminBilling timesheets={data.timesheets} milestones={data.milestones} projects={data.projects} onNavigate={setActiveSection} onRefresh={fetchData} />
+                    <AdminBilling timesheets={data.timesheets} milestones={data.milestones} projects={data.projects} assignments={data.assignments} onNavigate={setActiveSection} onRefresh={fetchData} />
                   )}
                   {activeSection === 'invoices' && (
                     <AdminInvoices invoices={data.invoices} onRefresh={fetchData} />

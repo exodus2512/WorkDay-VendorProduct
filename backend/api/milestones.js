@@ -161,7 +161,8 @@ export async function handleMilestones(req, pathSegments, queryParams) {
       if (res.rows.length === 0) return { status: 409, body: { error: 'Milestone state changed concurrently. Please refresh.' } };
       const m = res.rows[0];
 
-      // Update assignment & project completion status if all milestones done
+      // Auto-generate contractor payroll & update assignment completion status if all milestones done
+      await processMilestoneContractorPayroll(m);
       await checkAndUpdateProjectAndAssignmentsCompletion(m.project_id);
 
       if (m.submitted_by) {
