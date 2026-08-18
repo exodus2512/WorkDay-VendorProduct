@@ -181,23 +181,24 @@ export function Table({ headers = [], children, emptyText = 'No records found' }
   );
 }
 
-export function Alert({ title, children, type = 'info' }) {
+export function Alert({ title, children, message, type = 'info', className = '' }) {
   const types = {
     info: { bg: 'bg-sky-50 border-sky-200 text-sky-900', icon: Info, iconColor: 'text-sky-600' },
     success: { bg: 'bg-emerald-50 border-emerald-200 text-emerald-900', icon: CheckCircle, iconColor: 'text-emerald-600' },
     warning: { bg: 'bg-amber-50 border-amber-200 text-amber-900', icon: AlertTriangle, iconColor: 'text-amber-600' },
     danger: { bg: 'bg-rose-50 border-rose-200 text-rose-900', icon: AlertCircle, iconColor: 'text-rose-600' },
+    error: { bg: 'bg-rose-50 border-rose-200 text-rose-900', icon: AlertCircle, iconColor: 'text-rose-600' },
   };
 
   const config = types[type] || types.info;
   const Icon = config.icon;
 
   return (
-    <div className={`p-4 rounded-xl border flex items-start gap-3 ${config.bg}`}>
+    <div className={`p-4 rounded-xl border flex items-start gap-3 ${config.bg} ${className}`}>
       <Icon className={`w-5 h-5 mt-0.5 flex-shrink-0 ${config.iconColor}`} />
       <div className="text-sm">
         {title && <h5 className="font-semibold mb-0.5">{title}</h5>}
-        <div className="text-slate-700 leading-relaxed">{children}</div>
+        <div className="text-slate-700 leading-relaxed">{children || message}</div>
       </div>
     </div>
   );

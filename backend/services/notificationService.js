@@ -1,4 +1,4 @@
-import { addEmailJob } from '../workers/emailQueue.js';
+import { addEmailJob } from '../worker/emailQueue.js';
 
 // --- A. TO CONTRACT WORKERS ---
 

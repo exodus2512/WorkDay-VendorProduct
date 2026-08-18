@@ -7,15 +7,22 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "db:init": "node backend/db/init.js"
+    "db:init": "node backend/db/init.js",
+    "worker": "node backend/worker.js",
+    "test:email": "node backend/scripts/testEmailQueue.js",
+    "test:invoice-queue": "node backend/scripts/testInvoiceQueue.js"
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.4",
     "bcryptjs": "^3.0.3",
+    "bullmq": "^6.1.2",
     "clsx": "^2.1.1",
+    "dotenv": "^17.4.2",
+    "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.428.0",
     "next": "^14.2.5",
+    "nodemailer": "^9.0.5",
     "pg": "^8.12.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

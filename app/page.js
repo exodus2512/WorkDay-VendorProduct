@@ -8,6 +8,7 @@ import { LoadingSpinner } from '../frontend/components/UI';
 
 // Admin Views
 import AdminDashboard from '../frontend/admin/Dashboard';
+import AdminClients from '../frontend/admin/Clients';
 import AdminProjects from '../frontend/admin/Projects';
 import AdminWorkforce from '../frontend/admin/Workforce';
 import AdminAssignments from '../frontend/admin/Assignments';
@@ -42,12 +43,14 @@ export default function Home() {
   // Application Data State
   const [data, setData] = useState({
     users: [],
+    clients: [],
     projects: [],
     assignments: [],
     timesheets: [],
     milestones: [],
     invoices: [],
-    notifications: []
+    notifications: [],
+    payrolls: []
   });
 
   // Check auth session on mount
@@ -71,8 +74,9 @@ export default function Home() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [uRes, pRes, aRes, tRes, mRes, iRes, nRes, payRes] = await Promise.all([
+      const [uRes, cRes, pRes, aRes, tRes, mRes, iRes, nRes, payRes] = await Promise.all([
         fetch('/api/employees').then(r => r.json()),
+        fetch('/api/clients').then(r => r.json()),
         fetch('/api/projects').then(r => r.json()),
         fetch('/api/assignments').then(r => r.json()),
         fetch('/api/timesheets').then(r => r.json()),
@@ -84,6 +88,7 @@ export default function Home() {
 
       setData({
         users: Array.isArray(uRes) ? uRes : [],
+        clients: Array.isArray(cRes) ? cRes : [],
         projects: Array.isArray(pRes) ? pRes : [],
         assignments: Array.isArray(aRes) ? aRes : [],
         timesheets: Array.isArray(tRes) ? tRes : [],
@@ -176,8 +181,11 @@ export default function Home() {
                   {activeSection === 'dashboard' && (
                     <AdminDashboard data={data} onNavigate={setActiveSection} onRefresh={fetchData} />
                   )}
+                  {activeSection === 'clients' && (
+                    <AdminClients clients={data.clients} projects={data.projects} onRefresh={fetchData} onNavigate={setActiveSection} />
+                  )}
                   {activeSection === 'projects' && (
-                    <AdminProjects projects={data.projects} pms={pms} milestones={data.milestones} assignments={data.assignments} onRefresh={fetchData} />
+                    <AdminProjects projects={data.projects} clients={data.clients} pms={pms} milestones={data.milestones} assignments={data.assignments} onRefresh={fetchData} />
                   )}
                   {activeSection === 'workforce' && (
                     <AdminWorkforce users={data.users} assignments={data.assignments} onRefresh={fetchData} />
@@ -186,7 +194,7 @@ export default function Home() {
                     <AdminAssignments assignments={data.assignments} projects={data.projects} contractors={contractors} onRefresh={fetchData} />
                   )}
                   {activeSection === 'billing' && (
-                    <AdminBilling timesheets={data.timesheets} milestones={data.milestones} projects={data.projects} assignments={data.assignments} onNavigate={setActiveSection} onRefresh={fetchData} />
+                    <AdminBilling timesheets={data.timesheets} milestones={data.milestones} projects={data.projects} assignments={data.assignments} contractors={contractors} onNavigate={setActiveSection} onRefresh={fetchData} />
                   )}
                   {activeSection === 'invoices' && (
                     <AdminInvoices invoices={data.invoices} onRefresh={fetchData} />
@@ -214,9 +222,13 @@ export default function Home() {
                       timesheets={data.timesheets.filter(t => {
                         const currentPmIdStr = String(currentUser?.id || '');
                         if (t.pm_id && String(t.pm_id) === currentPmIdStr) return true;
-                        if (t.project_id && data.projects.some(p => String(p.id) === String(t.project_id) && String(p.project_manager_id) === currentPmIdStr)) return true;
-                        if (t.assignment_id && data.assignments.some(a => String(a.id) === String(t.assignment_id) && data.projects.some(p => String(p.id) === String(a.project_id) && String(p.project_manager_id) === currentPmIdStr))) return true;
-                        return false;
+                        const project = data.projects.find(p => String(p.id) === String(t.project_id));
+                        if (project) {
+                          if (String(project.project_manager_id) === currentPmIdStr) return true;
+                          if (currentUser?.client_id && Number(project.client_id) === Number(currentUser.client_id)) return true;
+                          if (currentUser?.vendor_id && Number(project.vendor_id) === Number(currentUser.vendor_id)) return true;
+                        }
+                        return true;
                       })}
                       assignments={data.assignments}
                       onRefresh={fetchData}
@@ -227,15 +239,29 @@ export default function Home() {
                       milestones={data.milestones.filter(m => {
                         const currentPmIdStr = String(currentUser?.id || '');
                         if (m.pm_id && String(m.pm_id) === currentPmIdStr) return true;
-                        if (m.project_id && data.projects.some(p => String(p.id) === String(m.project_id) && String(p.project_manager_id) === currentPmIdStr)) return true;
-                        return false;
+                        const project = data.projects.find(p => String(p.id) === String(m.project_id));
+                        if (project) {
+                          if (String(project.project_manager_id) === currentPmIdStr) return true;
+                          if (currentUser?.client_id && Number(project.client_id) === Number(currentUser.client_id)) return true;
+                          if (currentUser?.vendor_id && Number(project.vendor_id) === Number(currentUser.vendor_id)) return true;
+                        }
+                        return true;
                       })}
                       projects={data.projects}
                       onRefresh={fetchData}
                     />
                   )}
                   {activeSection === 'payrolls' && (
-                    <ContractorPayrolls payrolls={(data.payrolls || []).filter(p => data.projects.some(proj => proj.id === p.project_id && proj.project_manager_id === currentUser.id))} />
+                    <ContractorPayrolls payrolls={(data.payrolls || []).filter(p => {
+                      const currentPmIdStr = String(currentUser?.id || '');
+                      const project = data.projects.find(proj => proj.id === p.project_id);
+                      if (project) {
+                        if (String(project.project_manager_id) === currentPmIdStr) return true;
+                        if (currentUser?.client_id && Number(project.client_id) === Number(currentUser.client_id)) return true;
+                        if (currentUser?.vendor_id && Number(project.vendor_id) === Number(currentUser.vendor_id)) return true;
+                      }
+                      return true;
+                    })} />
                   )}
                 </>
               )}

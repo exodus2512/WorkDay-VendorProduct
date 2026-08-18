@@ -1,6 +1,12 @@
 import { query } from '../db/db.js';
 import { logAudit } from '../utils/audit.js';
 import { isValidTransition } from '../utils/stateMachine.js';
+import {
+  sendMilestoneCompleted,
+  sendBudgetWarning,
+} from '../services/notificationService.js';
+import { getExchangeRate } from '../services/exchangeRateService.js';
+import { calculateContractorPayroll } from '../utils/billing.js';
 
 // Helper function: Check if all milestones for a project are completed/approved; if so, update project & assignments to COMPLETED
 export async function checkAndUpdateProjectAndAssignmentsCompletion(projectId) {
@@ -32,12 +38,19 @@ async function processMilestoneContractorPayroll(milestone) {
   if (!milestone || !milestone.id || !milestone.project_id) return;
 
   try {
+    let totalPayrollForMilestone = 0;
+
     // 1. Check if payroll records already exist for this milestone to prevent duplicate payouts
-    const checkRes = await query('SELECT id FROM contractor_payrolls WHERE milestone_id = $1', [milestone.id]);
+    const checkRes = await query('SELECT id, gross_pay FROM contractor_payrolls WHERE milestone_id = $1', [milestone.id]);
     if (checkRes.rows.length === 0) {
       // Fetch all assignments for this project
       const assignRes = await query('SELECT * FROM assignments WHERE project_id = $1', [milestone.project_id]);
       const assignments = assignRes.rows || [];
+
+      // Fetch project's billing currency
+      const projRes = await query('SELECT billing_currency FROM projects WHERE id = $1', [milestone.project_id]);
+      const project = projRes.rows[0];
+      const projCurrency = project?.billing_currency || 'USD';
 
       for (const assign of assignments) {
         // Sum approved/submitted timesheet hours for this assignment
@@ -64,18 +77,65 @@ async function processMilestoneContractorPayroll(milestone) {
         }
 
         const grossPay = totalHours * billingRate;
+        totalPayrollForMilestone += grossPay;
         const idempotencyKey = `payroll_ms_${milestone.id}_assign_${assign.id}`;
 
+        // Fetch employee's payout currency & tax settings
+        const empRes = await query('SELECT payout_currency, tax_region, tax_exempt FROM users WHERE id = $1', [assign.employee_id]);
+        const employee = empRes.rows[0] || {};
+
+        // Fetch exchange rate (fixed rate on assignment or live rate)
+        let exchangeRate = 1.0;
+        if (projCurrency !== (employee.payout_currency || 'USD')) {
+          if (assign.fixed_exchange_rate !== null && assign.fixed_exchange_rate !== undefined) {
+            exchangeRate = parseFloat(assign.fixed_exchange_rate);
+          } else {
+            try {
+              const rateData = await getExchangeRate(projCurrency, employee.payout_currency);
+              exchangeRate = rateData.rate;
+            } catch (err) {
+              console.error('Error fetching exchange rate, using fallback:', err);
+              exchangeRate = 1.0;
+            }
+          }
+        }
+
+        // Run multi-currency payroll calculations
+        const payrollDetails = calculateContractorPayroll(
+          [{ total_hours: totalHours, billing_rate: billingRate }],
+          employee,
+          projCurrency,
+          exchangeRate
+        );
+
         // Insert contractor payroll record into DB
-        // Idempotency: the UNIQUE constraint on idempotency_key prevents duplicates at the DB level
         try {
           await query(
-            `INSERT INTO contractor_payrolls (milestone_id, project_id, employee_id, assignment_id, total_hours, billing_rate, gross_pay, status, idempotency_key)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-            [milestone.id, milestone.project_id, assign.employee_id, assign.id, totalHours, billingRate, grossPay, 'PROCESSED', idempotencyKey]
+            `INSERT INTO contractor_payrolls (
+              milestone_id, project_id, employee_id, assignment_id, total_hours, billing_rate, gross_pay, 
+              status, idempotency_key, payout_currency, exchange_rate_used, gross_pay_local, tax_rate_applied, 
+              tax_amount_local, net_pay_local
+             )
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+            [
+              milestone.id,
+              milestone.project_id,
+              assign.employee_id,
+              assign.id,
+              totalHours,
+              billingRate,
+              grossPay,
+              'PROCESSED',
+              idempotencyKey,
+              payrollDetails.payout_currency,
+              payrollDetails.exchange_rate,
+              payrollDetails.gross_local,
+              payrollDetails.tax_rate,
+              payrollDetails.tax_local,
+              payrollDetails.net_local
+            ]
           );
         } catch (insertErr) {
-          // If duplicate key error, we gracefully skip as it means payroll was already cut concurrently
           if (insertErr.message && insertErr.message.includes('unique constraint')) {
              console.log(`Skipping duplicate payroll generation for assignment ${assign.id} (Idempotency Key: ${idempotencyKey})`);
              continue;
@@ -88,10 +148,31 @@ async function processMilestoneContractorPayroll(milestone) {
           `INSERT INTO notifications (user_id, message, type) VALUES ($1, $2, $3)`,
           [
             assign.employee_id,
-            `Payroll Processed: Milestone "${milestone.name}" approved. Earned $${grossPay.toLocaleString()} (${totalHours} hrs @ $${billingRate}/hr).`,
+            `Payroll Processed: Milestone "${milestone.name}" approved. Earned ${payrollDetails.payout_currency} ${payrollDetails.gross_local.toLocaleString()} (${totalHours} hrs @ ${projCurrency} ${billingRate}/hr).`,
             'PAYROLL_PROCESSED'
           ]
         );
+      }
+    } else {
+      totalPayrollForMilestone = checkRes.rows.reduce((sum, r) => sum + (parseFloat(r.gross_pay) || 0), 0);
+    }
+
+    // Budget margin check (Payroll cost vs milestone revenue)
+    const milestoneAmount = parseFloat(milestone.amount || 0);
+    if (milestoneAmount > 0 && totalPayrollForMilestone > 0) {
+      const marginPercentage = (totalPayrollForMilestone / milestoneAmount) * 100;
+      if (marginPercentage > 85) {
+        try {
+          const adminRes = await query("SELECT email FROM users WHERE role = 'VENDOR_ADMIN' LIMIT 1");
+          const projRes = await query('SELECT name FROM projects WHERE id = $1', [milestone.project_id]);
+          const adminEmail = adminRes.rows[0]?.email;
+          const projectName = projRes.rows[0]?.name || 'Project';
+          if (adminEmail) {
+            await sendBudgetWarning(adminEmail, projectName, marginPercentage.toFixed(2));
+          }
+        } catch (warningErr) {
+          console.error('Failed to send budget warning email:', warningErr);
+        }
       }
     }
 
@@ -145,11 +226,11 @@ export async function handleMilestones(req, pathSegments, queryParams) {
 
   if (method === 'POST') {
     if (id && action === 'approve') {
-      const curr = await query('SELECT status FROM milestones WHERE id = $1', [id]);
+      const curr = await query('SELECT * FROM milestones WHERE id = $1', [id]);
       if (curr.rows.length === 0) return { status: 404, body: { error: 'Milestone not found' } };
 
       if (!isValidTransition('MILESTONE', curr.rows[0].status, 'APPROVED')) {
-        await logAudit({ vendor_id: user.vendor_id, entity_type: 'MILESTONE', entity_id: parseInt(id), actor_id: user.id, action: 'INVALID_TRANSITION_ATTEMPT', previous_status: curr.rows[0].status, new_status: 'APPROVED', metadata: { error: 'Invalid state transition' } });
+        await logAudit({ vendor_id: user?.vendor_id, entity_type: 'MILESTONE', entity_id: parseInt(id), actor_id: user?.id, action: 'INVALID_TRANSITION_ATTEMPT', previous_status: curr.rows[0].status, new_status: 'APPROVED', metadata: { error: 'Invalid state transition' } });
         return { status: 409, body: { error: `Invalid transition from ${curr.rows[0].status} to APPROVED` } };
       }
 
@@ -172,9 +253,22 @@ export async function handleMilestones(req, pathSegments, queryParams) {
         );
       }
 
+      // Dispatch async email notification to Admin: Milestone completed, invoice required
+      try {
+        const adminRes = await query("SELECT email FROM users WHERE role = 'VENDOR_ADMIN' LIMIT 1");
+        const projRes = await query('SELECT name FROM projects WHERE id = $1', [m.project_id]);
+        const adminEmail = adminRes.rows[0]?.email;
+        const projectName = projRes.rows[0]?.name || 'Project';
+        if (adminEmail) {
+          await sendMilestoneCompleted(adminEmail, projectName, m.name);
+        }
+      } catch (emailErr) {
+        console.error('Failed to dispatch milestone completed email:', emailErr);
+      }
+
       // Audit Log
       await logAudit({
-        vendor_id: user.vendor_id, entity_type: 'MILESTONE', entity_id: m.id, actor_id: user.id, action: 'APPROVE',
+        vendor_id: user?.vendor_id, entity_type: 'MILESTONE', entity_id: m.id, actor_id: user?.id, action: 'APPROVE',
         previous_status: curr.rows[0].status, new_status: 'APPROVED'
       });
 
@@ -189,7 +283,7 @@ export async function handleMilestones(req, pathSegments, queryParams) {
       if (curr.rows.length === 0) return { status: 404, body: { error: 'Milestone not found' } };
 
       if (!isValidTransition('MILESTONE', curr.rows[0].status, 'REJECTED')) {
-        await logAudit({ vendor_id: user.vendor_id, entity_type: 'MILESTONE', entity_id: parseInt(id), actor_id: user.id, action: 'INVALID_TRANSITION_ATTEMPT', previous_status: curr.rows[0].status, new_status: 'REJECTED', metadata: { error: 'Invalid state transition' } });
+        await logAudit({ vendor_id: user?.vendor_id, entity_type: 'MILESTONE', entity_id: parseInt(id), actor_id: user?.id, action: 'INVALID_TRANSITION_ATTEMPT', previous_status: curr.rows[0].status, new_status: 'REJECTED', metadata: { error: 'Invalid state transition' } });
         return { status: 409, body: { error: `Invalid transition from ${curr.rows[0].status} to REJECTED` } };
       }
 
@@ -210,7 +304,7 @@ export async function handleMilestones(req, pathSegments, queryParams) {
 
       // Audit Log
       await logAudit({
-        vendor_id: user.vendor_id, entity_type: 'MILESTONE', entity_id: m.id, actor_id: user.id, action: 'REJECT',
+        vendor_id: user?.vendor_id, entity_type: 'MILESTONE', entity_id: m.id, actor_id: user?.id, action: 'REJECT',
         previous_status: curr.rows[0].status, new_status: 'REJECTED', metadata: { rejection_reason }
       });
 
@@ -252,8 +346,21 @@ export async function handleMilestones(req, pathSegments, queryParams) {
       [status, rejection_reason || null, id]
     );
 
-    if (status === 'APPROVED' && res.rows.length > 0) {
-      await processMilestoneContractorPayroll(res.rows[0]);
+    if (res.rows.length > 0 && (status === 'APPROVED' || status === 'COMPLETED')) {
+      const m = res.rows[0];
+      await processMilestoneContractorPayroll(m);
+
+      try {
+        const adminRes = await query("SELECT email FROM users WHERE role = 'VENDOR_ADMIN' LIMIT 1");
+        const projRes = await query('SELECT name FROM projects WHERE id = $1', [m.project_id]);
+        const adminEmail = adminRes.rows[0]?.email;
+        const projectName = projRes.rows[0]?.name || 'Project';
+        if (adminEmail) {
+          await sendMilestoneCompleted(adminEmail, projectName, m.name);
+        }
+      } catch (emailErr) {
+        console.error('Failed to dispatch milestone completed email:', emailErr);
+      }
     }
 
     return { status: 200, body: res.rows[0] };

@@ -1,8 +1,24 @@
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+dotenv.config({ path: '.env' });
+
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 
-const connection = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+
+export const connection = new Redis(redisUrl, {
     maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+    lazyConnect: true,
+    retryStrategy(times) {
+        return Math.min(times * 1000, 15000);
+    }
+});
+
+connection.on('error', (err) => {
+    // Gracefully report Redis connection status without crashing the process
+    console.warn(`[Redis Queue Warning]: ${err.message}`);
 });
 
 export const emailQueue = new Queue('email-notifications', { connection });
@@ -15,7 +31,7 @@ export const initializeScheduler = async () => {
             'daily-deadline-checker-scheduler',
             {
                 pattern: '0 8 * * *', // 8:00 AM daily
-                tz: 'UTC', // You can change this to your desired timezone, e.g., 'America/New_York'
+                tz: 'UTC',
             },
             {
                 name: 'daily-deadline-check',
@@ -29,11 +45,16 @@ export const initializeScheduler = async () => {
 };
 
 export const addEmailJob = async (name, data) => {
-    return await emailQueue.add(name, data, {
-        attempts: 3,
-        backoff: {
-            type: 'exponential',
-            delay: 5000,
-        },
-    });
+    try {
+        return await emailQueue.add(name, data, {
+            attempts: 3,
+            backoff: {
+                type: 'exponential',
+                delay: 5000,
+            },
+        });
+    } catch (err) {
+        console.error(`[EmailQueue] Failed to enqueue job "${name}":`, err.message);
+        return null;
+    }
 };

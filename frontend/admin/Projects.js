@@ -35,11 +35,11 @@ function getProjectHealth(project, milestones, assignments) {
   return             { label: 'At Risk',        color: 'text-red-700',     icon: TrendingDown,  bg: 'bg-red-100'     };
 }
 
-export default function AdminProjects({ projects = [], pms = [], milestones = [], assignments = [], onRefresh }) {
+export default function AdminProjects({ projects = [], clients = [], pms = [], milestones = [], assignments = [], onRefresh }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
   const [formData, setFormData] = useState({
-    name: '', client_name: '', description: '', budget: '',
+    name: '', client_name: '', client_id: '', description: '', budget: '',
     start_date: new Date().toISOString().split('T')[0], end_date: '', project_manager_id: ''
   });
 
@@ -211,7 +211,32 @@ export default function AdminProjects({ projects = [], pms = [], milestones = []
         <form onSubmit={handleCreateSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Input label="Project Name" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Mobile Banking App" />
-            <Input label="Client Name" required value={formData.client_name} onChange={e => setFormData({ ...formData, client_name: e.target.value })} placeholder="e.g. Apex Corp" />
+            {clients && clients.length > 0 ? (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Client Organization *</label>
+                <select
+                  required
+                  value={formData.client_id || ''}
+                  onChange={(e) => {
+                    const selId = e.target.value;
+                    const found = clients.find(c => String(c.id) === String(selId));
+                    setFormData({
+                      ...formData,
+                      client_id: selId,
+                      client_name: found ? found.name : formData.client_name
+                    });
+                  }}
+                  className="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all"
+                >
+                  <option value="">Select a Client Organization</option>
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>{c.name} ({c.industry || 'Client'})</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <Input label="Client Name" required value={formData.client_name} onChange={e => setFormData({ ...formData, client_name: e.target.value })} placeholder="e.g. Apex Corp" />
+            )}
           </div>
           <Textarea label="Description" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} />
           <div className="grid grid-cols-2 gap-4">

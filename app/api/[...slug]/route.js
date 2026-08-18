@@ -10,6 +10,9 @@ import { handlePayrolls } from '../../../backend/api/payrolls.js';
 import { handleSeed } from '../../../backend/api/seed.js';
 import { handleAuth } from '../../../backend/api/auth.js';
 import { handleAuditLog } from '../../../backend/api/audit-log.js';
+import { handleClients } from '../../../backend/api/clients.js';
+import { handleMatch } from '../../../backend/api/match.js';
+import { handleExchangeRate } from '../../../backend/api/exchangeRate.js';
 
 async function routeHandler(req, { params }) {
   const slug = params.slug || [];
@@ -50,6 +53,15 @@ async function routeHandler(req, { params }) {
         break;
       case 'audit-log':
         result = await handleAuditLog(req, searchParams);
+        break;
+      case 'clients':
+        result = await handleClients(req, subSegments, searchParams);
+        break;
+      case 'match':
+        result = await handleMatch(req, subSegments, searchParams);
+        break;
+      case 'exchange-rate':
+        result = await handleExchangeRate(req, subSegments, searchParams);
         break;
       case 'seed':
         result = await handleSeed(req);

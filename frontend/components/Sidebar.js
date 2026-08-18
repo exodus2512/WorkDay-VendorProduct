@@ -21,6 +21,7 @@ export default function Sidebar({ currentRole, activeSection, onSelectSection })
       case 'VENDOR_ADMIN':
         return [
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+          { id: 'clients', label: 'Manage Clients', icon: Building2 },
           { id: 'projects', label: 'Projects', icon: Briefcase },
           { id: 'workforce', label: 'Workforce', icon: Users },
           { id: 'assignments', label: 'Assignments', icon: UserCheck },

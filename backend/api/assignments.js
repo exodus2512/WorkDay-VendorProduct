@@ -38,7 +38,7 @@ export async function handleAssignments(req, pathSegments, queryParams) {
 
   if (method === 'POST') {
     const body = await req.json();
-    const { project_id, employee_id, role, start_date, end_date, billing_rate, weekly_hour_limit } = body;
+    const { project_id, employee_id, role, start_date, end_date, billing_rate, weekly_hour_limit, fixed_exchange_rate } = body;
     
     if (!project_id || !employee_id || !role || !start_date || !end_date || !billing_rate) {
       return { status: 400, body: { error: 'Missing required assignment parameters.' } };
@@ -55,9 +55,19 @@ export async function handleAssignments(req, pathSegments, queryParams) {
     const projectName = projRes.rows[0]?.name || 'a project';
 
     const insertRes = await query(
-      `INSERT INTO assignments (project_id, employee_id, role, start_date, end_date, billing_rate, weekly_hour_limit, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [project_id, employee_id, role, start_date, end_date, billing_rate, weekly_hour_limit || 40, 'ACTIVE']
+      `INSERT INTO assignments (project_id, employee_id, role, start_date, end_date, billing_rate, weekly_hour_limit, status, fixed_exchange_rate)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [
+        project_id, 
+        employee_id, 
+        role, 
+        start_date, 
+        end_date, 
+        billing_rate, 
+        weekly_hour_limit || 40, 
+        'ACTIVE',
+        fixed_exchange_rate !== undefined && fixed_exchange_rate !== null && fixed_exchange_rate !== '' ? parseFloat(fixed_exchange_rate) : null
+      ]
     );
 
     const newId = insertRes.rows[0].id;
@@ -94,7 +104,7 @@ export async function handleAssignments(req, pathSegments, queryParams) {
 
   if (method === 'PUT' && id) {
     const body = await req.json();
-    const { role, start_date, end_date, billing_rate, weekly_hour_limit, status } = body;
+    const { role, start_date, end_date, billing_rate, weekly_hour_limit, status, fixed_exchange_rate } = body;
 
     const currRes = await query('SELECT billing_rate FROM assignments WHERE id = $1', [id]);
     const currentRate = parseFloat(currRes.rows[0]?.billing_rate || 0);
@@ -102,9 +112,18 @@ export async function handleAssignments(req, pathSegments, queryParams) {
     const user = req.user;
 
     const res = await query(
-      `UPDATE assignments SET role = $1, start_date = $2, end_date = $3, billing_rate = $4, weekly_hour_limit = $5, status = $6
-       WHERE id = $7 RETURNING *`,
-      [role, start_date, end_date, billing_rate, weekly_hour_limit, status, id]
+      `UPDATE assignments SET role = $1, start_date = $2, end_date = $3, billing_rate = $4, weekly_hour_limit = $5, status = $6, fixed_exchange_rate = $7
+       WHERE id = $8 RETURNING *`,
+      [
+        role, 
+        start_date, 
+        end_date, 
+        billing_rate, 
+        weekly_hour_limit, 
+        status, 
+        fixed_exchange_rate !== undefined && fixed_exchange_rate !== null && fixed_exchange_rate !== '' ? parseFloat(fixed_exchange_rate) : null,
+        id
+      ]
     );
 
     // Rate versioning: If rate changed, close old rate history and start new one

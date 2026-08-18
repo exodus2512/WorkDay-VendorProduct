@@ -5,7 +5,7 @@ let neonSql = null;
 
 function getNeonSql() {
   if (neonSql) return neonSql;
-  const connectionString = process.env.DATABASE_URL;
+  const connectionString = process.env.DATABASE_URL || process.env.DATABASE_URI;
   if (connectionString && !connectionString.includes('placeholder')) {
     try {
       neonSql = neon(connectionString);
@@ -103,6 +103,12 @@ const memoryDb = {
   contractor_payrolls: [
     { id: 1, milestone_id: 1, project_id: 1, employee_id: 4, assignment_id: 1, total_hours: 40.00, billing_rate: 85.00, gross_pay: 3400.00, status: 'PROCESSED', created_at: '2026-06-30' },
     { id: 2, milestone_id: 1, project_id: 1, employee_id: 5, assignment_id: 2, total_hours: 40.00, billing_rate: 95.00, gross_pay: 3800.00, status: 'PROCESSED', created_at: '2026-06-30' }
+  ],
+  clients: [
+    { id: 1, vendor_id: 1, name: 'Apex Financial Services', contact_person: 'Robert Sterling', contact_email: 'r.sterling@apexfinancial.com', contact_phone: '+1 (555) 234-5678', industry: 'Financial Services', address: '100 Wall Street, New York, NY', status: 'ACTIVE', created_at: '2026-06-01' },
+    { id: 2, vendor_id: 1, name: 'Logistics Global Inc.', contact_person: 'Claire Vance', contact_email: 'claire@logisticsglobal.com', contact_phone: '+1 (555) 876-5432', industry: 'Supply Chain & Logistics', address: '450 Harbor Blvd, Long Beach, CA', status: 'ACTIVE', created_at: '2026-06-01' },
+    { id: 3, vendor_id: 1, name: 'BioCare Health Network', contact_person: 'Dr. Arthur Harris', contact_email: 'aharris@biocarehealth.org', contact_phone: '+1 (555) 345-6789', industry: 'Healthcare & Biotech', address: '720 Health Park Way, Boston, MA', status: 'ACTIVE', created_at: '2026-06-01' },
+    { id: 4, vendor_id: 2, name: 'Nexus Retail Systems', contact_person: 'Sophia Lin', contact_email: 'sophia@nexusretail.com', contact_phone: '+1 (555) 987-6543', industry: 'Retail & E-commerce', address: '33 Market Square, Seattle, WA', status: 'ACTIVE', created_at: '2026-06-01' }
   ]
 };
 
@@ -586,6 +592,78 @@ function executeInMemoryQuery(queryString, params) {
     memoryDb.notifications.forEach(n => {
       if (n.user_id === uid) n.read = true;
     });
+    return { rows: [] };
+  }
+
+  // Clients Queries
+  if (q.includes('from clients')) {
+    let list = memoryDb.clients.map(c => {
+      const clientProjects = memoryDb.projects.filter(p => p.client_id === c.id || p.client_name === c.name);
+      const totalBudget = clientProjects.reduce((acc, p) => acc + (parseFloat(p.budget) || 0), 0);
+      return {
+        ...c,
+        project_count: clientProjects.length,
+        total_budget: totalBudget
+      };
+    });
+
+    if (q.includes('where vendor_id =')) {
+      const vId = parseInt(params[0], 10);
+      list = list.filter(c => c.vendor_id === vId);
+    }
+    if (q.includes('where id =')) {
+      const id = parseInt(params[0], 10);
+      list = list.filter(c => c.id === id);
+    }
+    return { rows: list };
+  }
+
+  // Insert Client
+  if (q.startsWith('insert into clients')) {
+    const id = memoryDb.clients.length > 0 ? Math.max(...memoryDb.clients.map(c => c.id)) + 1 : 1;
+    const newClient = {
+      id,
+      vendor_id: params[0] ? parseInt(params[0], 10) : 1,
+      name: params[1],
+      contact_person: params[2] || '',
+      contact_email: params[3] || '',
+      contact_phone: params[4] || '',
+      industry: params[5] || 'Technology',
+      address: params[6] || '',
+      status: params[7] || 'ACTIVE',
+      created_at: new Date().toISOString()
+    };
+    memoryDb.clients.push(newClient);
+    return { rows: [newClient] };
+  }
+
+  // Update Client
+  if (q.startsWith('update clients')) {
+    const id = parseInt(params[params.length - 1], 10);
+    const cIndex = memoryDb.clients.findIndex(c => c.id === id);
+    if (cIndex !== -1) {
+      if (params.length >= 7) {
+        memoryDb.clients[cIndex].name = params[0];
+        memoryDb.clients[cIndex].contact_person = params[1];
+        memoryDb.clients[cIndex].contact_email = params[2];
+        memoryDb.clients[cIndex].contact_phone = params[3];
+        memoryDb.clients[cIndex].industry = params[4];
+        memoryDb.clients[cIndex].address = params[5];
+        memoryDb.clients[cIndex].status = params[6];
+      }
+      return { rows: [memoryDb.clients[cIndex]] };
+    }
+    return { rows: [] };
+  }
+
+  // Delete Client
+  if (q.startsWith('delete from clients')) {
+    const id = parseInt(params[0], 10);
+    const cIndex = memoryDb.clients.findIndex(c => c.id === id);
+    if (cIndex !== -1) {
+      const deleted = memoryDb.clients.splice(cIndex, 1);
+      return { rows: deleted };
+    }
     return { rows: [] };
   }
 

@@ -19,7 +19,8 @@ import {
   Receipt,
   AlertTriangle,
   ArrowRight,
-  Plus
+  Plus,
+  Building2
 } from 'lucide-react';
 
 export default function AdminDashboard({ data, onNavigate, onRefresh }) {
@@ -28,6 +29,7 @@ export default function AdminDashboard({ data, onNavigate, onRefresh }) {
   const {
     projects = [],
     users = [],
+    clients = [],
     assignments = [],
     timesheets = [],
     milestones = [],
@@ -199,8 +201,11 @@ export default function AdminDashboard({ data, onNavigate, onRefresh }) {
             Manage client projects, contingent workforce assignments, rate cards & invoice validation.
           </p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="primary" onClick={() => onNavigate('projects')} className="bg-sky-500 hover:bg-sky-400">
+        <div className="flex flex-wrap gap-2.5">
+          <Button variant="primary" onClick={() => onNavigate('clients')} className="bg-sky-500 hover:bg-sky-400 font-semibold shadow-sm">
+            <Building2 className="w-4 h-4" /> Manage Clients
+          </Button>
+          <Button variant="primary" onClick={() => onNavigate('projects')} className="bg-indigo-600 hover:bg-indigo-500 font-semibold shadow-sm">
             <Plus className="w-4 h-4" /> New Project
           </Button>
           <Button variant="outline" onClick={() => onNavigate('billing')} className="bg-white/10 hover:bg-white/20 text-white border-white/20">
