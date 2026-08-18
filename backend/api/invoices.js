@@ -571,7 +571,7 @@ export async function handleInvoices(req, pathSegments, queryParams) {
     // 1. Invoice Validation Endpoint: POST /api/invoices/validate
     if (id === 'validate') {
       const body = await req.json();
-      const { project_id, timesheet_ids = [], milestone_ids = [] } = body;
+      const { project_id, timesheet_ids = [], milestone_ids = [], is_final = false } = body;
 
       const projRes = await query('SELECT * FROM projects WHERE id = $1', [project_id]);
       const project = projRes.rows[0] || null;
@@ -602,7 +602,8 @@ export async function handleInvoices(req, pathSegments, queryParams) {
         assignments,
         timesheets,
         milestones,
-        existingInvoices
+        existingInvoices,
+        isFinal: is_final
       });
 
       const eligibility = isProjectInvoiceEligible({
@@ -611,7 +612,8 @@ export async function handleInvoices(req, pathSegments, queryParams) {
         existingInvoices
       });
 
-      const billables = calculateBillables(timesheets, milestones);
+      const previousInvoices = existingInvoices.filter(inv => Number(inv.project_id) === Number(project_id) && inv.status !== 'REJECTED');
+      const billables = calculateBillables(timesheets, milestones, is_final, previousInvoices);
 
       return {
         status: 200,
@@ -658,7 +660,8 @@ export async function handleInvoices(req, pathSegments, queryParams) {
       project_id,
       timesheet_ids = [],
       milestone_ids = [],
-      status = 'SENT'
+      status = 'SENT',
+      is_final = false
     } = body;
 
     if (!project_id) {
@@ -671,6 +674,7 @@ export async function handleInvoices(req, pathSegments, queryParams) {
         timesheet_ids,
         milestone_ids,
         status,
+        is_final,
         user_id: req.user?.id || null
       });
 
@@ -700,7 +704,12 @@ export async function handleInvoices(req, pathSegments, queryParams) {
     const projectMilestones = msAll.rows;
 
     let selectedMilestones = [];
-    if (milestone_ids && milestone_ids.length > 0) {
+    if (is_final) {
+      // Automatic project-level invoice: take all approved/completed milestones for this project
+      selectedMilestones = projectMilestones.filter(
+        m => m.status === 'APPROVED' || m.status === 'COMPLETED'
+      );
+    } else if (milestone_ids && milestone_ids.length > 0) {
       selectedMilestones = projectMilestones.filter(m => milestone_ids.includes(m.id));
     } else {
       // Automatic project-level invoice: take all approved/completed milestones for this project
@@ -719,15 +728,20 @@ export async function handleInvoices(req, pathSegments, queryParams) {
     // ── Milestone-Only Client Invoice Generation ──────────────────────────────
     // Timesheets are an internal vendor→contractor payroll mechanism.
     // They are NEVER included in client-facing invoices.
+    
+    // Fetch previous invoices for deduction logic
+    const prevInvRes = await query('SELECT * FROM invoices WHERE project_id = $1 AND status != $2', [project_id, 'REJECTED']);
+    const previousInvoices = prevInvRes.rows;
+
     // Calculate invoice billables from approved milestones only
-    const billables = calculateBillables([], selectedMilestones);
+    const billables = calculateBillables([], selectedMilestones, is_final, previousInvoices);
     const invoiceNum = `INV-2026-${Math.floor(100 + Math.random() * 900)}`;
     const today = new Date().toISOString().split('T')[0];
 
     // Insert Invoice
     const invRes = await query(
-      `INSERT INTO invoices (project_id, invoice_number, invoice_date, subtotal, tax, total, status, billing_currency, tax_rate_applied)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      `INSERT INTO invoices (project_id, invoice_number, invoice_date, subtotal, tax, total, status, billing_currency, tax_rate_applied, is_final)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
       [
         project_id,
         invoiceNum,
@@ -737,7 +751,8 @@ export async function handleInvoices(req, pathSegments, queryParams) {
         billables.total,
         status || 'SENT',
         project.billing_currency || 'USD',
-        0.18
+        0.18,
+        is_final
       ]
     );
 

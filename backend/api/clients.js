@@ -55,6 +55,7 @@ export async function handleClients(req, pathSegments, queryParams) {
       industry,
       address,
       status,
+      preferred_currency,
       vendor_id
     } = body;
 
@@ -65,8 +66,8 @@ export async function handleClients(req, pathSegments, queryParams) {
     const vId = vendor_id || user?.vendor_id || 1;
 
     const res = await query(
-      `INSERT INTO clients (vendor_id, name, contact_person, contact_email, contact_phone, industry, address, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      `INSERT INTO clients (vendor_id, name, contact_person, contact_email, contact_phone, industry, address, status, preferred_currency)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [
         vId,
         name.trim(),
@@ -75,7 +76,8 @@ export async function handleClients(req, pathSegments, queryParams) {
         contact_phone ? contact_phone.trim() : '',
         industry || 'Technology',
         address ? address.trim() : '',
-        status || 'ACTIVE'
+        status || 'ACTIVE',
+        preferred_currency || 'USD'
       ]
     );
 
@@ -112,7 +114,8 @@ export async function handleClients(req, pathSegments, queryParams) {
       contact_phone,
       industry,
       address,
-      status
+      status,
+      preferred_currency
     } = body;
 
     const curr = await query('SELECT * FROM clients WHERE id = $1', [id]);
@@ -126,8 +129,8 @@ export async function handleClients(req, pathSegments, queryParams) {
 
     const res = await query(
       `UPDATE clients
-       SET name = $1, contact_person = $2, contact_email = $3, contact_phone = $4, industry = $5, address = $6, status = $7
-       WHERE id = $8 RETURNING *`,
+       SET name = $1, contact_person = $2, contact_email = $3, contact_phone = $4, industry = $5, address = $6, status = $7, preferred_currency = $8
+       WHERE id = $9 RETURNING *`,
       [
         name.trim(),
         contact_person ? contact_person.trim() : '',
@@ -136,6 +139,7 @@ export async function handleClients(req, pathSegments, queryParams) {
         industry || 'Technology',
         address ? address.trim() : '',
         status || 'ACTIVE',
+        preferred_currency || curr.rows[0].preferred_currency || 'USD',
         id
       ]
     );

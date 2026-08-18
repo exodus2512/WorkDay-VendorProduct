@@ -189,7 +189,10 @@ export const CURRENCY_SYMBOLS = {
  *
  * For contractor payroll calculations, use calculateContractorPayroll().
  */
-export function calculateBillables(approvedTimesheets = [], approvedMilestones = []) {
+  //       It remains in the signature for backwards compatibility only.
+  //       Client invoices are milestone-based deliverable settlements.
+  // ─────────────────────────────────────────────────────────────────────────
+export function calculateBillables(approvedTimesheets = [], approvedMilestones = [], isFinal = false, previousInvoices = []) {
   // ─────────────────────────────────────────────────────────────────────────
   // NOTE: approvedTimesheets param is intentionally ignored in client invoices.
   //       It remains in the signature for backwards compatibility only.
@@ -212,13 +215,31 @@ export function calculateBillables(approvedTimesheets = [], approvedMilestones =
   });
 
   const milestoneTotal = milestoneItems.reduce((acc, item) => acc + item.amount, 0);
-  const subtotal = Math.round(milestoneTotal * 100) / 100;
+  
+  let deductionsTotal = 0;
+  let deductionItems = [];
+  
+  if (isFinal && previousInvoices && previousInvoices.length > 0) {
+    const validPastInvoices = previousInvoices.filter(inv => inv.status !== 'REJECTED');
+    deductionsTotal = validPastInvoices.reduce((acc, inv) => acc + parseFloat(inv.subtotal || 0), 0);
+    deductionItems = validPastInvoices.map(inv => ({
+      type: 'PREVIOUS_INVOICE',
+      reference_id: inv.id,
+      description: `Less: Previously Invoiced (${inv.invoice_number})`,
+      quantity: 1.0,
+      rate: -parseFloat(inv.subtotal || 0),
+      amount: -parseFloat(inv.subtotal || 0)
+    }));
+  }
+
+  const subtotal = Math.round((milestoneTotal - deductionsTotal) * 100) / 100;
   const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
   const total = Math.round((subtotal + tax) * 100) / 100;
 
   return {
     milestoneItems,
-    items: milestoneItems,   // Only milestone items go to the client invoice
+    deductionItems,
+    items: [...milestoneItems, ...deductionItems],   // Milestone items + any deductions
     subtotal,
     tax,
     taxRate: TAX_RATE,
@@ -309,7 +330,7 @@ export function calculateContractorPayroll(
  *  4. No milestones are duplicate-billed from prior invoices
  *  5. Calculation accuracy (subtotal, 18% GST, total)
  */
-export function validateInvoice({ project, assignments = [], timesheets = [], milestones = [], existingInvoices = [] }) {
+export function validateInvoice({ project, assignments = [], timesheets = [], milestones = [], existingInvoices = [], isFinal = false }) {
   const checks = {
     assignmentExists:  { label: 'Active Assignment Exists',      passed: true, details: 'Valid active assignment verified.' },
     assignmentActive:  { label: 'Assignment Active Status',      passed: true, details: 'Assignment is currently active.' },
@@ -360,26 +381,32 @@ export function validateInvoice({ project, assignments = [], timesheets = [], mi
   }
 
   // Check 5: No duplicate milestone billing
-  const billedMilestoneIds = new Set();
-  existingInvoices.forEach(inv => {
-    if (inv.status !== 'REJECTED' && inv.items) {
-      inv.items.forEach(item => {
-        if (item.type === 'MILESTONE') {
-          billedMilestoneIds.add(`MILESTONE_${item.reference_id}`);
-        }
-      });
-    }
-  });
+  if (!isFinal) {
+    const billedMilestoneIds = new Set();
+    existingInvoices.forEach(inv => {
+      if (inv.status !== 'REJECTED' && inv.items) {
+        inv.items.forEach(item => {
+          if (item.type === 'MILESTONE') {
+            billedMilestoneIds.add(`MILESTONE_${item.reference_id}`);
+          }
+        });
+      }
+    });
 
-  const duplicateMilestones = milestones.filter(m => billedMilestoneIds.has(`MILESTONE_${m.id}`));
-  if (duplicateMilestones.length > 0) {
-    checks.noDuplicateBilling.passed = false;
-    checks.noDuplicateBilling.details = `${duplicateMilestones.length} milestone(s) were already billed in prior invoices.`;
-    exceptions.push('Duplicate billing detected for previously invoiced items.');
+    const duplicateMilestones = milestones.filter(m => billedMilestoneIds.has(`MILESTONE_${m.id}`));
+    if (duplicateMilestones.length > 0) {
+      checks.noDuplicateBilling.passed = false;
+      checks.noDuplicateBilling.details = `${duplicateMilestones.length} milestone(s) were already billed in prior invoices.`;
+      exceptions.push('Duplicate billing detected for previously invoiced items.');
+    }
+  } else {
+    // If it's the final invoice, we expect all milestones to be included. Duplicate billing check is skipped
+    // because calculateBillables will inject PREVIOUS_INVOICE negative deductions to balance it out.
+    checks.noDuplicateBilling.details = 'Skipped duplicate check for final consolidated invoice.';
   }
 
   // Check 6: Calculation accuracy (milestone totals + GST)
-  const calculated = calculateBillables([], milestones);
+  const calculated = calculateBillables([], milestones, isFinal, existingInvoices);
   if (isNaN(calculated.subtotal) || isNaN(calculated.tax) || isNaN(calculated.total)) {
     checks.calculationCorrect.passed = false;
     checks.calculationCorrect.details = 'Invalid mathematical values in milestone line item calculation.';

@@ -11,6 +11,7 @@ import {
 
 export default function ClientInvoices({ clientUser, onRefreshParent }) {
     const [invoices, setInvoices] = useState([]);
+    const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
@@ -96,8 +97,24 @@ export default function ClientInvoices({ clientUser, onRefreshParent }) {
         }
     };
 
+    const loadProjects = async () => {
+        try {
+            const params = new URLSearchParams();
+            if (clientUser.name) params.set('client_name', clientUser.name);
+            if (clientUser.client_id) params.set('client_id', clientUser.client_id);
+            if (clientUser.id) params.set('client_user_id', clientUser.id);
+
+            const res = await fetch(`/api/projects?${params.toString()}`);
+            const data = await res.json();
+            setProjects(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error('Failed to load client projects:', err);
+        }
+    };
+
     useEffect(() => {
         loadInvoices();
+        loadProjects();
     }, [clientUser]);
 
     // Handle 1-click official PDF download
@@ -153,45 +170,34 @@ export default function ClientInvoices({ clientUser, onRefreshParent }) {
     });
 
     // Calculate metrics
+    const totalProjectBudget = projects.reduce((s, p) => s + (parseFloat(p.budget) || 0), 0);
     const totalInvoiced = invoices.reduce((s, inv) => s + (parseFloat(inv.total) || 0), 0);
     const totalPaid = invoices
         .filter(i => i.status === 'PAID')
         .reduce((s, inv) => s + (parseFloat(inv.total) || 0), 0);
-    const totalPending = invoices
-        .filter(i => i.status === 'SENT' || i.status === 'SUBMITTED' || i.status === 'APPROVED')
-        .reduce((s, inv) => s + (parseFloat(inv.total) || 0), 0);
+    const remainingBalance = totalProjectBudget - totalPaid;
 
     return (
         <div className="space-y-6">
-            {/* Metrics Summary Row */}
+            {/* Metrics Summary Row - Project Balance Sheet */}
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
-                        <Receipt className="w-6 h-6" />
+                    <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 shrink-0">
+                        <Briefcase className="w-6 h-6" />
                     </div>
                     <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Invoices</p>
-                        <p className="text-2xl font-black text-slate-900">{invoices.length}</p>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Project Budget</p>
+                        <p className="text-2xl font-black text-slate-900">${totalProjectBudget.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                     </div>
                 </div>
 
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
-                        <DollarSign className="w-6 h-6" />
+                        <Receipt className="w-6 h-6" />
                     </div>
                     <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Invoiced</p>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Amount Invoiced</p>
                         <p className="text-xl font-bold text-slate-900">${totalInvoiced.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                    </div>
-                </div>
-
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
-                        <Clock className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pending Settlement</p>
-                        <p className="text-xl font-bold text-amber-700">${totalPending.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                     </div>
                 </div>
 
@@ -202,6 +208,16 @@ export default function ClientInvoices({ clientUser, onRefreshParent }) {
                     <div>
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Settled & Paid</p>
                         <p className="text-xl font-bold text-emerald-700">${totalPaid.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                    </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+                        <DollarSign className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Remaining Balance</p>
+                        <p className="text-xl font-bold text-amber-700">${remainingBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                     </div>
                 </div>
             </div>

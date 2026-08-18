@@ -1,3 +1,7 @@
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
+dotenv.config({ path: '.env' });
+
 /**
  * Exchange Rate Service
  *
@@ -32,7 +36,7 @@ const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
  * @returns {Promise<{rates: Object, source: string}>}
  */
 async function fetchRatesFromAPI() {
-  const appId = process.env.EXCHANGE_RATE_API_KEY;
+  let appId = process.env.EXCHANGE_RATE_API_KEY || '';
 
   if (!appId) {
     console.warn('[ExchangeRateService] No EXCHANGE_RATE_API_KEY set. Using fallback rates.');
@@ -40,7 +44,9 @@ async function fetchRatesFromAPI() {
   }
 
   try {
-    const url = `https://v6.exchangerate-api.com/v6/${appId}/latest/USD`;
+    const url = appId.startsWith('http://') || appId.startsWith('https://')
+      ? appId
+      : `https://v6.exchangerate-api.com/v6/${appId}/latest/USD`;
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
 
     if (!res.ok) {

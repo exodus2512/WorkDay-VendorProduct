@@ -10,6 +10,7 @@ import {
   Alert,
   LoadingSpinner
 } from '../components/UI.js';
+import CurrencyTickerWidget from '../components/CurrencyTickerWidget.js';
 import {
   Briefcase,
   Users,
@@ -213,6 +214,9 @@ export default function AdminDashboard({ data, onNavigate, onRefresh }) {
           </Button>
         </div>
       </div>
+
+      {/* Live Global Currency Treasury Widget */}
+      <CurrencyTickerWidget baseCurrency="USD" />
 
       {/* 2.A Executive Overview (Top Row) */}
       <div>

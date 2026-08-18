@@ -223,14 +223,15 @@ export default function AdminProjects({ projects = [], clients = [], pms = [], m
                     setFormData({
                       ...formData,
                       client_id: selId,
-                      client_name: found ? found.name : formData.client_name
+                      client_name: found ? found.name : formData.client_name,
+                      billing_currency: found?.preferred_currency || formData.billing_currency || 'USD'
                     });
                   }}
-                  className="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all"
+                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50/60 hover:bg-white focus:bg-white border border-slate-200 rounded-xl shadow-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium"
                 >
                   <option value="">Select a Client Organization</option>
                   {clients.map(c => (
-                    <option key={c.id} value={c.id}>{c.name} ({c.industry || 'Client'})</option>
+                    <option key={c.id} value={c.id}>{c.name} (Preferred: {c.preferred_currency || 'USD'})</option>
                   ))}
                 </select>
               </div>
@@ -239,8 +240,24 @@ export default function AdminProjects({ projects = [], clients = [], pms = [], m
             )}
           </div>
           <Textarea label="Description" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} />
-          <div className="grid grid-cols-2 gap-4">
-            <Input label="Budget (USD)" type="number" required value={formData.budget} onChange={e => setFormData({ ...formData, budget: e.target.value })} />
+          <div className="grid grid-cols-3 gap-4">
+            <Input label="Budget" type="number" required value={formData.budget} onChange={e => setFormData({ ...formData, budget: e.target.value })} />
+            <Select
+              label="Billing Currency"
+              options={[
+                { value: 'USD', label: 'USD ($)' },
+                { value: 'EUR', label: 'EUR (€)' },
+                { value: 'GBP', label: 'GBP (£)' },
+                { value: 'INR', label: 'INR (₹)' },
+                { value: 'AUD', label: 'AUD (A$)' },
+                { value: 'CAD', label: 'CAD (C$)' },
+                { value: 'SGD', label: 'SGD (S$)' },
+                { value: 'JPY', label: 'JPY (¥)' },
+                { value: 'AED', label: 'AED (د.إ)' },
+              ]}
+              value={formData.billing_currency || 'USD'}
+              onChange={e => setFormData({ ...formData, billing_currency: e.target.value })}
+            />
             <Select label="Assign PM" value={formData.project_manager_id} onChange={e => setFormData({ ...formData, project_manager_id: e.target.value })}
               options={[{ value: '', label: 'Unassigned' }, ...pms.map(pm => ({ value: pm.id, label: pm.name }))]} />
           </div>

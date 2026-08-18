@@ -11,8 +11,9 @@ import {
   Alert
 } from '../components/UI.js';
 import { Plus, Edit, Send, Save, AlertTriangle, Eye } from 'lucide-react';
+import TimerWidget from './TimerWidget.js';
 
-export default function EmployeeTimesheets({ timesheets = [], assignments = [], empUser, onRefresh }) {
+export default function EmployeeTimesheets({ timesheets = [], assignments = [], milestones = [], empUser, onRefresh }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTs, setEditingTs] = useState(null);
   const [selectedAssignmentId, setSelectedAssignmentId] = useState(assignments.length > 0 ? assignments[0].id : '');
@@ -56,13 +57,28 @@ export default function EmployeeTimesheets({ timesheets = [], assignments = [], 
     setSelectedAssignmentId(ts.assignment_id);
     setWeekStart(ts.week_start);
     setWorkDescription(ts.work_description || '');
-    if (ts.entries && ts.entries.length === 7) {
-      setDailyEntries(ts.entries.map((e, i) => ({
-        day: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i],
-        hours: String(e.hours),
-        desc: e.description || ''
-      })));
-    }
+
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const wStart = new Date(ts.week_start || '2026-08-17');
+
+    const mappedEntries = days.map((dayName, i) => {
+      const d = new Date(wStart);
+      d.setDate(d.getDate() + i);
+      const dateStr = d.toISOString().split('T')[0];
+
+      const match = ts.entries?.find(e => {
+        const eDate = typeof e.date === 'string' ? e.date.split('T')[0] : e.date;
+        return eDate === dateStr;
+      });
+
+      return {
+        day: dayName,
+        hours: match ? String(match.hours) : '0',
+        desc: match ? (match.description || '') : ''
+      };
+    });
+
+    setDailyEntries(mappedEntries);
     setIsModalOpen(true);
   };
 
@@ -124,6 +140,28 @@ export default function EmployeeTimesheets({ timesheets = [], assignments = [], 
         <Button variant="primary" onClick={handleOpenNew}>
           <Plus className="w-4 h-4" /> Create New Weekly Log
         </Button>
+      </div>
+
+      {/* Real-Time Timer Widget */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="sm:col-span-1">
+          <TimerWidget
+            assignments={assignments}
+            milestones={milestones}
+            empUser={empUser}
+            onStop={() => { if (onRefresh) onRefresh(); }}
+          />
+        </div>
+        <div className="sm:col-span-2 bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-5 border border-slate-700 flex flex-col justify-center">
+          <p className="text-xs font-bold text-sky-400 uppercase tracking-widest mb-1">⚡ Timer-Powered Timesheets</p>
+          <h3 className="text-lg font-bold text-white mb-2">No more manual hour entry</h3>
+          <ul className="space-y-1.5 text-sm text-slate-300">
+            <li className="flex items-center gap-2"><span className="text-emerald-400">✓</span> Select assignment & milestone, hit Start</li>
+            <li className="flex items-center gap-2"><span className="text-emerald-400">✓</span> Pause/Resume during breaks — timer pauses when you switch tabs</li>
+            <li className="flex items-center gap-2"><span className="text-emerald-400">✓</span> Stop &amp; Log auto-writes hours to today&apos;s timesheet entry</li>
+            <li className="flex items-center gap-2"><span className="text-amber-400">⚠</span> Timer auto-stops at midnight if you forget — you&apos;ll get an email</li>
+          </ul>
+        </div>
       </div>
 
       <Card>

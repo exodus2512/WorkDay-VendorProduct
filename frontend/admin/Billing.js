@@ -40,6 +40,8 @@ export default function AdminBilling({ timesheets = [], milestones = [], project
   const [validationData, setValidationData] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [rates, setRates] = useState({});
+  const [selectedMilestoneIds, setSelectedMilestoneIds] = useState([]);
+  const [isFinal, setIsFinal] = useState(false);
 
   const selectedProject = selectedProjectId ? projects.find(p => String(p.id) === String(selectedProjectId)) : (projects[0] || null);
   const activeProjectId = selectedProject ? String(selectedProject.id) : '';
@@ -56,6 +58,11 @@ export default function AdminBilling({ timesheets = [], milestones = [], project
     activeProjectId &&
     String(m.project_id) === activeProjectId
   );
+
+  // Auto-select all milestones when project changes
+  useEffect(() => {
+    setSelectedMilestoneIds(approvedMilestones.map(m => m.id));
+  }, [activeProjectId, milestones.length]);
 
   const timesheetTotal = approvedTimesheets.reduce((acc, t) => acc + (parseFloat(t.total_hours || 0) * parseFloat(t.billing_rate || 0)), 0);
   const milestoneTotal = approvedMilestones.reduce((acc, m) => acc + parseFloat(m.amount || 0), 0);
@@ -141,8 +148,9 @@ export default function AdminBilling({ timesheets = [], milestones = [], project
     };
   });
 
-  const handleRunValidation = async () => {
+  const handleRunValidation = async (isFinalFlag = false) => {
     if (!selectedProject) return;
+    setIsFinal(isFinalFlag);
     setGenerating(true);
     try {
       const res = await fetch('/api/invoices/validate', {
@@ -151,7 +159,8 @@ export default function AdminBilling({ timesheets = [], milestones = [], project
         body: JSON.stringify({
           project_id: selectedProject.id,
           timesheet_ids: approvedTimesheets.map(t => t.id),
-          milestone_ids: approvedMilestones.map(m => m.id)
+          milestone_ids: isFinalFlag ? approvedMilestones.map(m => m.id) : selectedMilestoneIds,
+          is_final: isFinalFlag
         })
       });
       const json = await res.json();
@@ -172,7 +181,8 @@ export default function AdminBilling({ timesheets = [], milestones = [], project
         body: JSON.stringify({
           project_id: selectedProject?.id,
           timesheet_ids: approvedTimesheets.map(t => t.id),
-          milestone_ids: approvedMilestones.map(m => m.id)
+          milestone_ids: isFinal ? approvedMilestones.map(m => m.id) : selectedMilestoneIds,
+          is_final: isFinal
         })
       });
       if (res.ok) {
@@ -208,8 +218,11 @@ export default function AdminBilling({ timesheets = [], milestones = [], project
               <option key={p.id} value={p.id}>{p.name} ({p.client_name})</option>
             ))}
           </select>
-          <Button variant="primary" onClick={handleRunValidation} loading={generating} disabled={approvedTimesheets.length === 0 && approvedMilestones.length === 0}>
-            <Calculator className="w-4 h-4" /> Run Invoice Validation
+          <Button variant="primary" onClick={() => handleRunValidation(false)} loading={generating && !isFinal} disabled={selectedMilestoneIds.length === 0}>
+            <Calculator className="w-4 h-4" /> Partial Invoice
+          </Button>
+          <Button variant="success" onClick={() => handleRunValidation(true)} loading={generating && isFinal} disabled={approvedMilestones.length === 0}>
+            <CheckCircle2 className="w-4 h-4" /> Final Consolidated Invoice
           </Button>
         </div>
       </div>
@@ -312,13 +325,27 @@ export default function AdminBilling({ timesheets = [], milestones = [], project
       </Card>
 
       {/* Approved Milestones Section */}
-      <Card title="Approved Billable Milestones">
+      <Card title="Approved Billable Milestones (Select for Partial Invoice)">
         {approvedMilestones.length === 0 ? (
           <p className="text-sm text-slate-500 py-4">No approved milestones for this project.</p>
         ) : (
-          <Table headers={['Milestone ID', 'Milestone Name', 'Due Date', 'Submitted By', 'Amount', 'Status']}>
+          <Table headers={['Select', 'Milestone ID', 'Milestone Name', 'Due Date', 'Submitted By', 'Amount', 'Status']}>
             {approvedMilestones.map(m => (
               <tr key={m.id} className="hover:bg-slate-50">
+                <td className="px-6 py-4">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedMilestoneIds.includes(m.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedMilestoneIds([...selectedMilestoneIds, m.id]);
+                      } else {
+                        setSelectedMilestoneIds(selectedMilestoneIds.filter(id => id !== m.id));
+                      }
+                    }}
+                    className="w-4 h-4 text-sky-600 rounded border-slate-300 focus:ring-sky-500 cursor-pointer"
+                  />
+                </td>
                 <td className="px-6 py-4 font-bold text-slate-900">MS #{m.id}</td>
                 <td className="px-6 py-4 font-semibold text-slate-800">{m.name}</td>
                 <td className="px-6 py-4 text-xs text-slate-500">{m.due_date}</td>

@@ -561,11 +561,12 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Input, Textarea, StatusBadge, Alert } from '../components/UI.js';
 import ClientInvoices from './Invoices.js';
+import InvoiceReview from './InvoiceReview.js';
 import ProjectManagersTab from './ProjectManagersTab.js';
 import {
   Plus, Trash2, Send, FolderOpen, Calendar, DollarSign,
   Target, CheckCircle, Clock, Eye, LayoutDashboard, Receipt,
-  CheckCircle2, Sparkles, FileText, Users
+  CheckCircle2, Sparkles, FileText, Users, CreditCard
 } from 'lucide-react';
 
 export default function ClientPortal({ clientUser, onRefresh }) {
@@ -777,6 +778,12 @@ export default function ClientPortal({ clientUser, onRefresh }) {
             >
               <Users className="w-4 h-4" /> Project Managers
             </button>
+            <button
+              onClick={() => setActiveTab('review')}
+              className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-all ${activeTab === 'review' ? 'bg-emerald-600 text-white shadow' : 'text-slate-600 hover:text-emerald-600 hover:bg-emerald-50'}`}
+            >
+              <CreditCard className="w-4 h-4" /> Review &amp; Pay
+            </button>
           </div>
         </div>
 
@@ -950,6 +957,11 @@ export default function ClientPortal({ clientUser, onRefresh }) {
         {/* ── Tab: Invoices & Billing ── */}
         {activeTab === 'invoices' && (
           <ClientInvoices clientUser={clientUser} onRefreshParent={onRefresh} />
+        )}
+
+        {/* ── Tab: Review & Pay ── */}
+        {activeTab === 'review' && (
+          <InvoiceReview clientUser={clientUser} onRefreshParent={onRefresh} />
         )}
 
         {/* ── Tab: Project Managers ── */}

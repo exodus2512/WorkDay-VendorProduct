@@ -13,6 +13,7 @@ import { handleAuditLog } from '../../../backend/api/audit-log.js';
 import { handleClients } from '../../../backend/api/clients.js';
 import { handleMatch } from '../../../backend/api/match.js';
 import { handleExchangeRate } from '../../../backend/api/exchangeRate.js';
+import { handleTimer } from '../../../backend/api/timer.js';
 
 async function routeHandler(req, { params }) {
   const slug = params.slug || [];
@@ -63,6 +64,9 @@ async function routeHandler(req, { params }) {
       case 'exchange-rate':
         result = await handleExchangeRate(req, subSegments, searchParams);
         break;
+      case 'timer':
+        result = await handleTimer(req, subSegments, searchParams);
+        break;
       case 'seed':
         result = await handleSeed(req);
         break;
@@ -80,4 +84,5 @@ async function routeHandler(req, { params }) {
 export const GET = routeHandler;
 export const POST = routeHandler;
 export const PUT = routeHandler;
+export const PATCH = routeHandler;
 export const DELETE = routeHandler;

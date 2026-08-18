@@ -153,7 +153,7 @@ export default function Home() {
   const unreadNotifsCount = data.notifications.filter(n => n.user_id === currentUser.id && !n.read).length;
 
   return (
-    <div className="flex h-screen bg-slate-100 overflow-hidden font-sans">
+    <div className="flex h-screen bg-slate-50/50 overflow-hidden font-sans text-slate-900">
       {/* Sidebar Navigation */}
       <Sidebar
         currentRole={currentRole}
@@ -170,7 +170,7 @@ export default function Home() {
           onRefresh={fetchData}
         />
 
-        <main className="flex-1 overflow-y-auto p-8 max-w-7xl w-full mx-auto">
+        <main className="flex-1 overflow-y-auto p-6 md:p-8 max-w-7xl w-full mx-auto animate-slide-up">
           {loading ? (
             <LoadingSpinner text="Loading workspace data..." />
           ) : (
@@ -276,7 +276,7 @@ export default function Home() {
                     <EmployeeAssignment assignments={data.assignments} empUser={currentUser} onRefresh={fetchData} />
                   )}
                   {activeSection === 'timesheets' && (
-                    <EmployeeTimesheets timesheets={data.timesheets.filter(t => t.employee_id === currentUser.id)} assignments={data.assignments.filter(a => a.employee_id === currentUser.id)} empUser={currentUser} onRefresh={fetchData} />
+                    <EmployeeTimesheets timesheets={data.timesheets.filter(t => t.employee_id === currentUser.id)} assignments={data.assignments.filter(a => a.employee_id === currentUser.id)} milestones={data.milestones || []} empUser={currentUser} onRefresh={fetchData} />
                   )}
                   {activeSection === 'milestones' && (
                     <EmployeeMilestones milestones={data.milestones} assignments={data.assignments.filter(a => a.employee_id === currentUser.id)} empUser={currentUser} onRefresh={fetchData} />

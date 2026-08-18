@@ -32,7 +32,7 @@ export const invoiceWorker = new Worker(
       throw new Error(`Unknown job type: ${name}`);
     }
 
-    const { project_id, timesheet_ids = [], milestone_ids = [], status = 'SENT', user_id } = data;
+    const { project_id, timesheet_ids = [], milestone_ids = [], status = 'SENT', is_final = false, user_id } = data;
 
     if (!project_id) {
       throw new Error('project_id is required');
@@ -57,7 +57,11 @@ export const invoiceWorker = new Worker(
     const projectMilestones = msAll.rows;
 
     let selectedMilestones = [];
-    if (milestone_ids && milestone_ids.length > 0) {
+    if (is_final) {
+      selectedMilestones = projectMilestones.filter(
+        m => m.status === 'APPROVED' || m.status === 'COMPLETED'
+      );
+    } else if (milestone_ids && milestone_ids.length > 0) {
       selectedMilestones = projectMilestones.filter(m => milestone_ids.includes(m.id));
     } else {
       selectedMilestones = projectMilestones.filter(
@@ -87,7 +91,8 @@ export const invoiceWorker = new Worker(
       assignments,
       timesheets: [],          // Timesheets are NOT part of client invoice validation
       milestones: selectedMilestones,
-      existingInvoices
+      existingInvoices,
+      isFinal: is_final
     });
 
     if (!validation.isValid) {
@@ -98,15 +103,18 @@ export const invoiceWorker = new Worker(
 
     // Step 3: Compute Financial Calculations (milestones only) -> 60%
     await job.updateProgress(60);
-    const billables = calculateBillables([], selectedMilestones);
+    
+    // Fetch previous invoices for deduction logic
+    const previousInvoices = existingInvoices.filter(inv => Number(inv.project_id) === Number(project_id) && inv.status !== 'REJECTED');
+    const billables = calculateBillables([], selectedMilestones, is_final, previousInvoices);
     const invoiceNum = `INV-2026-${Math.floor(100 + Math.random() * 900)}`;
     const today = new Date().toISOString().split('T')[0];
 
     // Step 4: Write to DB (invoices & invoice_items) -> 80%
     await job.updateProgress(80);
     const invRes = await query(
-      `INSERT INTO invoices (project_id, invoice_number, invoice_date, subtotal, tax, total, status, billing_currency, tax_rate_applied)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      `INSERT INTO invoices (project_id, invoice_number, invoice_date, subtotal, tax, total, status, billing_currency, tax_rate_applied, is_final)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
       [
         project_id,
         invoiceNum,
@@ -116,7 +124,8 @@ export const invoiceWorker = new Worker(
         billables.total,
         status || 'SENT',
         project.billing_currency || 'USD',
-        0.18
+        0.18,
+        is_final
       ]
     );
     const newInvoice = invRes.rows[0];

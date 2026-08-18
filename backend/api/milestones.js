@@ -7,6 +7,7 @@ import {
 } from '../services/notificationService.js';
 import { getExchangeRate } from '../services/exchangeRateService.js';
 import { calculateContractorPayroll } from '../utils/billing.js';
+import { addInvoiceGenerationJob } from '../worker/invoiceQueue.js';
 
 // Helper function: Check if all milestones for a project are completed/approved; if so, update project & assignments to COMPLETED
 export async function checkAndUpdateProjectAndAssignmentsCompletion(projectId) {
@@ -28,8 +29,11 @@ export async function checkAndUpdateProjectAndAssignmentsCompletion(projectId) {
       // Mark all contractor assignments for this project as COMPLETED
       await query("UPDATE assignments SET status = 'COMPLETED' WHERE project_id = $1", [projectId]);
     }
+    
+    return allCompleted;
   } catch (err) {
     console.error('Error checking project/assignment completion:', err);
+    return false;
   }
 }
 
@@ -244,7 +248,21 @@ export async function handleMilestones(req, pathSegments, queryParams) {
 
       // Auto-generate contractor payroll & update assignment completion status if all milestones done
       await processMilestoneContractorPayroll(m);
-      await checkAndUpdateProjectAndAssignmentsCompletion(m.project_id);
+      const allCompleted = await checkAndUpdateProjectAndAssignmentsCompletion(m.project_id);
+
+      // Trigger automatic invoice generation (Partial or Final)
+      try {
+        await addInvoiceGenerationJob({
+          project_id: m.project_id,
+          timesheet_ids: [],
+          milestone_ids: allCompleted ? [] : [m.id],
+          status: 'SENT',
+          is_final: allCompleted,
+          user_id: user?.id || null
+        });
+      } catch (err) {
+        console.error('Failed to auto-trigger invoice generation:', err);
+      }
 
       if (m.submitted_by) {
         await query(

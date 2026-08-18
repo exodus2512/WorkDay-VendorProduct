@@ -49,6 +49,18 @@ const INDUSTRY_OPTIONS = [
   { value: 'Other', label: 'Other Industry' },
 ];
 
+const CURRENCY_OPTIONS = [
+  { value: 'USD', label: 'USD ($) — US Dollar' },
+  { value: 'EUR', label: 'EUR (€) — Euro' },
+  { value: 'GBP', label: 'GBP (£) — British Pound' },
+  { value: 'INR', label: 'INR (₹) — Indian Rupee' },
+  { value: 'AUD', label: 'AUD (A$) — Australian Dollar' },
+  { value: 'CAD', label: 'CAD (C$) — Canadian Dollar' },
+  { value: 'SGD', label: 'SGD (S$) — Singapore Dollar' },
+  { value: 'JPY', label: 'JPY (¥) — Japanese Yen' },
+  { value: 'AED', label: 'AED (د.إ) — UAE Dirham' },
+];
+
 export default function AdminClients({ clients = [], projects = [], onRefresh, onNavigate }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -67,7 +79,8 @@ export default function AdminClients({ clients = [], projects = [], onRefresh, o
     contact_phone: '',
     industry: 'Technology & SaaS',
     address: '',
-    status: 'ACTIVE'
+    status: 'ACTIVE',
+    preferred_currency: 'USD'
   });
 
   const [formError, setFormError] = useState('');
@@ -131,7 +144,8 @@ export default function AdminClients({ clients = [], projects = [], onRefresh, o
       contact_phone: '',
       industry: 'Technology & SaaS',
       address: '',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
+      preferred_currency: 'USD'
     });
     setFormError('');
     setIsCreateModalOpen(true);
@@ -146,7 +160,8 @@ export default function AdminClients({ clients = [], projects = [], onRefresh, o
       contact_phone: client.contact_phone || '',
       industry: client.industry || 'Technology & SaaS',
       address: client.address || '',
-      status: client.status || 'ACTIVE'
+      status: client.status || 'ACTIVE',
+      preferred_currency: client.preferred_currency || 'USD'
     });
     setFormError('');
   };
@@ -386,7 +401,10 @@ export default function AdminClients({ clients = [], projects = [], onRefresh, o
                         </p>
                       </div>
                     </div>
-                    <StatusBadge status={client.status} />
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <StatusBadge status={client.status} />
+                      <Badge variant="indigo" size="sm">Billing: {client.preferred_currency || 'USD'}</Badge>
+                    </div>
                   </div>
 
                   {/* Contact Info Body */}
@@ -593,6 +611,13 @@ export default function AdminClients({ clients = [], projects = [], onRefresh, o
               options={INDUSTRY_OPTIONS}
               value={formData.industry}
               onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
+            />
+
+            <Select
+              label="Preferred Billing Currency"
+              options={CURRENCY_OPTIONS}
+              value={formData.preferred_currency}
+              onChange={(e) => setFormData({ ...formData, preferred_currency: e.target.value })}
             />
 
             <Select

@@ -5,7 +5,9 @@ dotenv.config({ path: '.env' });
 import Redis from 'ioredis';
 import './worker/emailWorker.js';
 import './worker/invoiceWorker.js';
+import './worker/timerWorker.js';
 import { initializeScheduler } from './worker/emailQueue.js';
+import { initializeTimerScheduler } from './worker/timerQueue.js';
 
 console.log('----------------------------------------------------');
 console.log('🚀 Starting Contingent Workforce Background Worker...');
@@ -24,9 +26,11 @@ async function start() {
   }
 
   await initializeScheduler();
+  await initializeTimerScheduler();
   console.log('✅ Worker is now actively listening to queues:');
   console.log('   - "email-notifications" (Transactional Email & Reminders)');
   console.log('   - "invoice-processing"  (Async 7-Point Audit & PDF Pipeline)');
+  console.log('   - "timer-jobs"          (Midnight Auto-Stop & Timer Safety Net)');
 }
 
 start().catch((err) => {
