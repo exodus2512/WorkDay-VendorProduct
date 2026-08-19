@@ -1,3 +1,26 @@
+/**
+ * --------------------------------------------------------------------------------
+ * CLIENTS API HANDLER (/api/clients)
+ * --------------------------------------------------------------------------------
+ * Core Logic & Workflow:
+ *  - Manages enterprise client profiles associated with a vendor organization.
+ *  - All queries are vendor-scoped to prevent cross-tenant data leakage.
+ *  - Aggregates real-time project metrics (`project_count`, `total_budget`) per client using SQL JOINs.
+ *  - Emits immutable audit log records on client creation, updates, and deletions.
+ *
+ * Supported Operations:
+ *  - GET /api/clients
+ *      Lists clients for the vendor (or all if admin). Aggregates project counts and total budget.
+ *  - GET /api/clients/:id
+ *      Returns details for a single client by ID.
+ *  - POST /api/clients
+ *      Creates a new client record under the authenticated vendor's organization.
+ *  - PUT /api/clients/:id
+ *      Updates client contact details, address, industry, or status (ACTIVE / INACTIVE).
+ *  - DELETE /api/clients/:id
+ *      Deletes a client record and logs the deletion event in the audit trail.
+ * --------------------------------------------------------------------------------
+ */
 import { query } from '../db/db.js';
 import { logAudit } from '../utils/audit.js';
 

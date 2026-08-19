@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently \"next dev\" \"npm run worker\"",
     "build": "next build",
     "start": "next start",
     "db:init": "node backend/db/init.js",
@@ -30,6 +30,7 @@
   },
   "devDependencies": {
     "autoprefixer": "^10.4.20",
+    "concurrently": "^10.0.5",
     "postcss": "^8.4.41",
     "tailwindcss": "^3.4.10"
   }

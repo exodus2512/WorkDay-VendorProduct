@@ -1,3 +1,31 @@
+/**
+ * --------------------------------------------------------------------------------
+ * TIMESHEETS API HANDLER (/api/timesheets)
+ * --------------------------------------------------------------------------------
+ * Core Logic & Workflow:
+ *  - Manages weekly contractor time logs and daily hour breakdowns (`timesheet_entries`).
+ *  - Supports linking timesheet hours directly to a project deliverable via `milestone_id`.
+ *  - Timesheet Status Flow: DRAFT -> SUBMITTED -> APPROVED / REJECTED.
+ *  - Enforces legal state machine transitions (`isValidTransition('TIMESHEET', ...)`) and logs all actions
+ *    to the immutable `audit_log`.
+ *  - Dispatches transactional email notifications on submission, approval, and rejection.
+ *
+ * Supported Operations:
+ *  - GET /api/timesheets
+ *      Lists timesheets enriched with project, client, employee, and milestone names.
+ *      Filterable by `employee_id`, `project_id`, `pm_id`, `status`.
+ *  - GET /api/timesheets/:id
+ *      Returns a single timesheet along with its daily breakdown (`timesheet_entries`).
+ *  - POST /api/timesheets
+ *      Creates a new weekly timesheet with daily entry breakdown (Mon-Sun) and optional `milestone_id`.
+ *  - PUT /api/timesheets/:id
+ *      Updates timesheet hours, descriptions, entries, or status.
+ *  - POST /api/timesheets/:id/approve
+ *      PM approval action. Updates status to `APPROVED` and notifies the contractor.
+ *  - POST /api/timesheets/:id/reject
+ *      PM rejection action with mandatory feedback reason.
+ * --------------------------------------------------------------------------------
+ */
 import { query } from '../db/db.js';
 import { logAudit } from '../utils/audit.js';
 import { isValidTransition } from '../utils/stateMachine.js';
@@ -20,11 +48,13 @@ export async function handleTimesheets(req, pathSegments, queryParams) {
           p.id AS project_id, p.name AS project_name, p.client_name,
           p.project_manager_id AS pm_id,
           u.name AS employee_name,
+          m.name AS milestone_name,
           a.billing_rate, a.weekly_hour_limit
         FROM timesheets t
         LEFT JOIN assignments a ON a.id = t.assignment_id
         LEFT JOIN projects p ON p.id = a.project_id
         LEFT JOIN users u ON u.id = t.employee_id
+        LEFT JOIN milestones m ON m.id = t.milestone_id
         WHERE t.id = $1
       `, [id]);
       if (res.rows.length === 0) return { status: 404, body: { error: 'Timesheet not found' } };
@@ -43,11 +73,13 @@ export async function handleTimesheets(req, pathSegments, queryParams) {
         p.id AS project_id, p.name AS project_name, p.client_name,
         p.project_manager_id AS pm_id,
         u.name AS employee_name,
+        m.name AS milestone_name,
         a.billing_rate, a.weekly_hour_limit
       FROM timesheets t
       LEFT JOIN assignments a ON a.id = t.assignment_id
       LEFT JOIN projects p ON p.id = a.project_id
       LEFT JOIN users u ON u.id = t.employee_id
+      LEFT JOIN milestones m ON m.id = t.milestone_id
     `;
 
     let res;
@@ -173,16 +205,16 @@ export async function handleTimesheets(req, pathSegments, queryParams) {
 
     // Create or submit new timesheet
     const body = await req.json();
-    const { assignment_id, employee_id, week_start, total_hours, work_description, status, entries } = body;
+    const { assignment_id, employee_id, week_start, total_hours, work_description, status, entries, milestone_id } = body;
 
     if (!assignment_id || !employee_id || !week_start) {
       return { status: 400, body: { error: 'Missing required timesheet fields.' } };
     }
 
     const res = await query(
-      `INSERT INTO timesheets (assignment_id, employee_id, week_start, total_hours, work_description, status)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [assignment_id, employee_id, week_start, total_hours || 0, work_description || '', status || 'DRAFT']
+      `INSERT INTO timesheets (assignment_id, employee_id, week_start, total_hours, work_description, status, milestone_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [assignment_id, employee_id, week_start, total_hours || 0, work_description || '', status || 'DRAFT', milestone_id || null]
     );
 
     const newTs = res.rows[0];
@@ -202,11 +234,13 @@ export async function handleTimesheets(req, pathSegments, queryParams) {
         p.id AS project_id, p.name AS project_name, p.client_name,
         p.project_manager_id AS pm_id,
         u.name AS employee_name,
+        m.name AS milestone_name,
         a.billing_rate, a.weekly_hour_limit
       FROM timesheets t
       LEFT JOIN assignments a ON a.id = t.assignment_id
       LEFT JOIN projects p ON p.id = a.project_id
       LEFT JOIN users u ON u.id = t.employee_id
+      LEFT JOIN milestones m ON m.id = t.milestone_id
       WHERE t.id = $1
     `, [newTs.id]);
 
@@ -239,7 +273,7 @@ export async function handleTimesheets(req, pathSegments, queryParams) {
 
   if (method === 'PUT' && id) {
     const body = await req.json();
-    const { total_hours, work_description, status, entries, rejection_reason } = body;
+    const { total_hours, work_description, status, entries, rejection_reason, milestone_id } = body;
 
     const curr = await query('SELECT status FROM timesheets WHERE id = $1', [id]);
     if (curr.rows.length === 0) return { status: 404, body: { error: 'Timesheet not found' } };
@@ -250,9 +284,9 @@ export async function handleTimesheets(req, pathSegments, queryParams) {
     }
 
     const res = await query(
-      `UPDATE timesheets SET total_hours = $1, work_description = $2, status = $3, rejection_reason = $4
-       WHERE id = $5 RETURNING *`,
-      [total_hours, work_description, status, status === 'SUBMITTED' ? null : rejection_reason, id]
+      `UPDATE timesheets SET total_hours = $1, work_description = $2, status = $3, rejection_reason = $4, milestone_id = $5
+       WHERE id = $6 RETURNING *`,
+      [total_hours, work_description, status, status === 'SUBMITTED' ? null : rejection_reason, milestone_id || null, id]
     );
 
     if (entries && Array.isArray(entries)) {

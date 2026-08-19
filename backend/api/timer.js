@@ -1,3 +1,30 @@
+/**
+ * --------------------------------------------------------------------------------
+ * REAL-TIME TIMER API HANDLER (/api/timer)
+ * --------------------------------------------------------------------------------
+ * Core Logic & Workflow:
+ *  - Powers the live contractor time tracking widget (TimerWidget.js).
+ *  - Maintains live session state (`RUNNING`, `PAUSED`, `STOPPED`) with accumulated seconds.
+ *  - Implements a 30-second heartbeat (`PATCH /api/timer/heartbeat`) to keep tracking active.
+ *  - AUTOMATIC TIMESHEET ENTRY WRITING: When a timer is stopped, elapsed hours are converted
+ *    and written directly to the appropriate weekly timesheet & `timesheet_entries` row, grouped
+ *    by `assignment_id` + `milestone_id`.
+ *
+ * Supported Operations:
+ *  - GET /api/timer/active
+ *      Retrieves contractor's currently active running or paused timer session.
+ *  - POST /api/timer/start
+ *      Starts a new timer session for a specific assignment and milestone deliverable.
+ *  - POST /api/timer/pause
+ *      Pauses a running timer, updating total accumulated seconds.
+ *  - POST /api/timer/resume
+ *      Resumes a paused timer session.
+ *  - POST /api/timer/stop
+ *      Stops active timer session and automatically converts tracked time into timesheet entries.
+ *  - PATCH /api/timer/heartbeat
+ *      Updates `last_resumed_at` timestamp every 30 seconds to prevent auto-idle timeouts.
+ * --------------------------------------------------------------------------------
+ */
 import jwt from "jsonwebtoken";
 import { query } from "../db/db.js";
 
@@ -176,15 +203,15 @@ export async function handleTimer(req, pathSegments, queryParams) {
 
     let timesheetId;
     const existingTs = await query(
-      `SELECT id FROM timesheets WHERE assignment_id = $1 AND employee_id = $2 AND week_start = $3`,
-      [s.assignment_id, userId, weekStart]
+      `SELECT id FROM timesheets WHERE assignment_id = $1 AND employee_id = $2 AND week_start = $3 AND (milestone_id = $4 OR (milestone_id IS NULL AND $4::int IS NULL))`,
+      [s.assignment_id, userId, weekStart, s.milestone_id]
     );
     if (existingTs.rows.length > 0) {
       timesheetId = existingTs.rows[0].id;
     } else {
       const newTs = await query(
-        `INSERT INTO timesheets (assignment_id, employee_id, week_start, total_hours, work_description, status) VALUES ($1, $2, $3, 0, '', 'DRAFT') RETURNING id`,
-        [s.assignment_id, userId, weekStart]
+        `INSERT INTO timesheets (assignment_id, employee_id, week_start, total_hours, work_description, status, milestone_id) VALUES ($1, $2, $3, 0, '', 'DRAFT', $4) RETURNING id`,
+        [s.assignment_id, userId, weekStart, s.milestone_id]
       );
       timesheetId = newTs.rows[0].id;
     }

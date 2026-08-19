@@ -23,11 +23,17 @@ async function initDatabase() {
     const schemaSql = fs.readFileSync(schemaPath, 'utf8');
     console.log('⚙️ Executing schema.sql on Neon...');
     
-    // Split SQL by statement to execute on Neon HTTP serverless driver safely
-    const schemaStatements = schemaSql
-      .split(';')
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
+    const cleanSql = (sqlText) => {
+      return sqlText
+        .split('\n')
+        .map(line => line.replace(/--.*$/, '').trim())
+        .join('\n')
+        .split(';')
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+    };
+
+    const schemaStatements = cleanSql(schemaSql);
 
     for (const stmt of schemaStatements) {
       await sql(stmt);
@@ -37,10 +43,7 @@ async function initDatabase() {
     const seedSql = fs.readFileSync(seedPath, 'utf8');
     console.log('🌱 Executing seed.sql on Neon...');
 
-    const seedStatements = seedSql
-      .split(';')
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
+    const seedStatements = cleanSql(seedSql);
 
     for (const stmt of seedStatements) {
       await sql(stmt);

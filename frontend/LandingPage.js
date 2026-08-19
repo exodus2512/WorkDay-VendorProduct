@@ -103,7 +103,7 @@ export default function LandingPage({ onLoginClick, onSignupSuccess }) {
             <Button size="lg" className="w-full sm:w-auto text-base px-8 py-4 shadow-lg shadow-blue-500/20" onClick={() => document.getElementById('signup').scrollIntoView()}>
               Start Your Free Trial <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
-            <Button variant="secondary" size="lg" className="w-full sm:w-auto text-base px-8 py-4 bg-white hover:bg-slate-50">
+            <Button variant="secondary" size="lg" className="w-full sm:w-auto text-base px-8 py-4">
               Book a Demo
             </Button>
           </div>

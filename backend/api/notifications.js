@@ -1,3 +1,19 @@
+/**
+ * --------------------------------------------------------------------------------
+ * IN-APP NOTIFICATIONS API HANDLER (/api/notifications)
+ * --------------------------------------------------------------------------------
+ * Core Logic & Workflow:
+ *  - Serves as the back-end inbox handler for user alert notifications.
+ *  - Handles timesheet submissions/approvals/rejections, milestone events, invoice submissions,
+ *    payroll disbursements, and timer auto-stop warnings.
+ *
+ * Supported Operations:
+ *  - GET /api/notifications?user_id=123
+ *      Retrieves unread and read in-app notifications for a specific user, sorted newest first.
+ *  - PUT /api/notifications?user_id=123
+ *      Marks all unread notifications as read for the user.
+ * --------------------------------------------------------------------------------
+ */
 import { query } from '../db/db.js';
 
 export async function handleNotifications(req, pathSegments, queryParams) {

@@ -1,3 +1,33 @@
+/**
+ * --------------------------------------------------------------------------------
+ * MILESTONES API HANDLER (/api/milestones)
+ * --------------------------------------------------------------------------------
+ * Core Logic & Workflow:
+ *  - Controls the primary billing deliverable lifecycle for client projects.
+ *  - Milestone Status Flow: PENDING -> IN_PROGRESS -> SUBMITTED -> APPROVED / REJECTED -> COMPLETED.
+ *  - UPON APPROVAL:
+ *     1. Auto-calculates contractor payrolls for assigned employees using versioned rate cards
+ *        and live/locked multi-currency exchange rates.
+ *     2. Checks if ALL milestones for the project are approved/completed. If so, automatically
+ *        updates project and contractor assignments status to `COMPLETED`.
+ *     3. Auto-triggers client invoice generation via BullMQ (`addInvoiceGenerationJob`).
+ *     4. Dispatches transactional notification emails and checks for 85% budget margin warnings.
+ *
+ * Supported Operations:
+ *  - GET /api/milestones
+ *      Lists milestones enriched with project and contractor data. Filterable by `project_id` or `pm_id`.
+ *  - GET /api/milestones/:id
+ *      Returns details for a single milestone.
+ *  - POST /api/milestones
+ *      Creates a new milestone record under a project.
+ *  - POST /api/milestones/:id/approve
+ *      PM approval action. Triggers contractor payroll, completion check, and auto-invoice queue.
+ *  - POST /api/milestones/:id/reject
+ *      PM rejection action with mandatory feedback reason.
+ *  - PUT /api/milestones/:id
+ *      Contractor deliverable evidence submission (action="SUBMIT") or status updates.
+ * --------------------------------------------------------------------------------
+ */
 import { query } from '../db/db.js';
 import { logAudit } from '../utils/audit.js';
 import { isValidTransition } from '../utils/stateMachine.js';

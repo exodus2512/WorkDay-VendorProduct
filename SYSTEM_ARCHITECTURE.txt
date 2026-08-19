@@ -1,0 +1,502 @@
+================================================================================
+    WORKFORCE VENDOR PRODUCT — SYSTEM ARCHITECTURE & FEATURE SPECIFICATION
+    Version 2.0 | Updated: August 2026
+================================================================================
+
+An enterprise-grade, multi-tenant contingent workforce operating system for
+staffing agencies, dev shops, and consultancy firms. Manages the full lifecycle
+from client proposal submission to contractor payroll disbursement.
+
+================================================================================
+I. SYSTEM OVERVIEW
+================================================================================
+
+Primary Roles:
+  - VENDOR_ADMIN   : Owns the vendor org, manages clients, workforce & billing
+  - PROJECT_MANAGER: Approves timesheets and milestone deliverables
+  - EMPLOYEE       : Contractor who logs hours and submits milestone evidence
+  - CLIENT         : External client who submits project proposals
+
+Technology Stack:
+  - Frontend : Next.js 14 (App Router), React, Tailwind CSS
+  - Backend  : Next.js API Routes (serverless edge-compatible handlers)
+  - Database : Neon PostgreSQL (Serverless, @neondatabase/serverless driver)
+               + In-Memory fallback store for offline/local development
+  - Auth     : JWT (jsonwebtoken) + bcrypt password hashing
+  - Queue    : BullMQ + Redis (ioredis) for background job processing
+  - Email    : SMTP via Nodemailer (Gmail-compatible)
+  - Exchange : ExchangeRate-API v6 (live rates, 1-hour in-memory cache)
+
+================================================================================
+II. DIRECTORY STRUCTURE
+================================================================================
+
+  workday-project-main/
+  ├── app/
+  │   ├── page.js                    — Root app shell; role-based view router
+  │   ├── layout.js                  — HTML root layout
+  │   ├── globals.css                — Global Tailwind + custom animation styles
+  │   └── api/[...slug]/route.js     — Unified catch-all API gateway (Next.js)
+  ├── frontend/
+  │   ├── LandingPage.js             — Public marketing & vendor signup page
+  │   ├── components/
+  │   │   ├── Sidebar.js             — Role-aware navigation sidebar
+  │   │   ├── Header.js              — Top bar: user info, logout, notifications
+  │   │   └── UI.js                  — Design system: Button, Card, Table, Badge,
+  │   │                                StatusBadge, Modal, Alert, LoadingSpinner
+  │   ├── auth/
+  │   │   └── Login.js               — Login form component
+  │   ├── admin/
+  │   │   ├── Dashboard.js           — KPI stats, activity feed
+  │   │   ├── Clients.js             — Client CRUD, project count aggregation
+  │   │   ├── Projects.js            — Project management with PM assignment
+  │   │   ├── Workforce.js           — Contractor roster, skill matcher trigger
+  │   │   ├── Assignments.js         — Assignment CRUD with rate card & FX preview
+  │   │   ├── Billing.js             — Invoice validation engine UI (7 rules)
+  │   │   ├── Invoices.js            — Invoice list and status management
+  │   │   └── Payrolls.js            — Contractor payroll records
+  │   ├── pm/
+  │   │   ├── Dashboard.js           — PM workload overview
+  │   │   ├── Projects.js            — PM-scoped project view with milestones
+  │   │   ├── Team.js                — Team roster for PM's projects
+  │   │   ├── Timesheets.js          — Timesheet approval: with milestone column
+  │   │   └── Milestones.js          — Milestone review & approval with evidence
+  │   ├── employee/
+  │   │   ├── Dashboard.js           — Contractor stats: hours, payroll, status
+  │   │   ├── Assignment.js          — View current active assignment details
+  │   │   ├── Timesheets.js          — Weekly timesheet logger + milestone tagging
+  │   │   ├── Milestones.js          — Submit deliverable evidence (filtered by
+  │   │                                assignment-linked projects only)
+  │   │   ├── TimerWidget.js         — Real-time timer: start/pause/stop/heartbeat
+  │   │   └── Notifications.js       — In-app notification inbox
+  │   └── client/
+  │       ├── Portal.js              — Client project submission portal
+  │       ├── Invoices.js            — Client invoice review & payment action
+  │       ├── InvoiceReview.js       — Detailed invoice item breakdown
+  │       └── ProjectManagersTab.js  — View and select PMs for project proposals
+  ├── backend/
+  │   ├── api/
+  │   │   ├── auth.js                — Login, Signup, JWT issuance
+  │   │   ├── employees.js           — User/contractor CRUD
+  │   │   ├── clients.js             — Client CRUD with audit logging
+  │   │   ├── projects.js            — Project CRUD, completion auto-trigger
+  │   │   ├── assignments.js         — Assignment CRUD + rate history versioning
+  │   │   ├── timesheets.js          — Timesheet CRUD with milestone_id support
+  │   │   ├── milestones.js          — Milestone lifecycle: payroll + FX + notify
+  │   │   ├── invoices.js            — Invoice generation, validation, status flow
+  │   │   ├── payrolls.js            — Payroll status transitions + budget alerts
+  │   │   ├── notifications.js       — In-app notification read/list
+  │   │   ├── timer.js               — Timer session: start/pause/resume/stop/beat
+  │   │   ├── match.js               — Smart Bench & Skill Matcher engine (GET)
+  │   │   ├── exchangeRate.js        — Live FX rate proxy (server-side key guard)
+  │   │   ├── audit-log.js           — Vendor-scoped audit trail read API
+  │   │   └── seed.js                — DB seed trigger endpoint
+  │   ├── db/
+  │   │   ├── db.js                  — Neon DB client + in-memory fallback store
+  │   │   ├── rateLimiter.js         — Token Bucket rate limiter (default 50 QPS)
+  │   │   ├── schema.sql             — Full DDL (multi-tenant, all tables)
+  │   │   ├── seed.sql               — Realistic demo data
+  │   │   └── init.js                — DB initialization script runner
+  │   ├── services/
+  │   │   ├── exchangeRateService.js — Live FX fetch + 1hr cache + fallback table
+  │   │   └── notificationService.js — Queued email notifications (via BullMQ)
+  │   ├── utils/
+  │   │   ├── billing.js             — calculateBillables, validateInvoice (7-rule),
+  │   │   │                            calculateContractorPayroll, generateInvoicePDF
+  │   │   ├── audit.js               — logAudit() — immutable event trail writer
+  │   │   └── stateMachine.js        — isValidTransition() for all entity states
+  │   ├── worker/
+  │   │   ├── emailQueue.js          — BullMQ queue: email job producer
+  │   │   ├── emailWorker.js         — BullMQ worker: SMTP email delivery
+  │   │   ├── invoiceQueue.js        — BullMQ queue: invoice generation job producer
+  │   │   ├── invoiceWorker.js       — BullMQ worker: invoice PDF gen + email
+  │   │   ├── timerQueue.js          — BullMQ queue: timer auto-stop job producer
+  │   │   └── timerWorker.js         — BullMQ worker: midnight timer auto-stop
+  │   └── worker.js                  — Worker entry point (starts all BullMQ workers)
+  ├── .env.local                     — Environment config (DB, SMTP, Redis, FX API)
+  ├── package.json
+  └── README.md
+
+================================================================================
+III. DATABASE SCHEMA ENTITIES
+================================================================================
+
+  vendors             — Top-level org isolation unit (multi-tenant root)
+  clients             — Client orgs owned by a vendor; have preferred_currency
+  users               — All roles: vendor_id + client_id scoping; payout_currency,
+                        tax_region, tax_exempt, weekly_capacity_hours fields
+  projects            — Scoped to vendor + client; billing_currency field
+  assignments         — Contractor → Project mapping; billing_rate, fixed_exchange_rate
+  assignment_rate_history — Versioned rate cards; effective_from/effective_to dates
+  milestones          — Deliverables with amount, evidence, rejection_reason fields
+  timesheets          — Weekly hour log; now includes milestone_id (FK → milestones)
+  timesheet_entries   — Daily breakdown (date, hours, description) per timesheet
+  timer_sessions      — Active timer state: RUNNING / PAUSED / STOPPED; heartbeat
+  invoices            — Client-facing billing documents; status flow (DRAFT→PAID)
+  invoice_items       — Line items: TIMESHEET or MILESTONE type
+  contractor_payrolls — Payroll records per milestone approval; multi-currency
+  notifications       — In-app alert inbox per user
+  audit_log           — Immutable event trail (entity_type, action, actor, vendor)
+
+================================================================================
+IV. FEATURE CATALOGUE
+================================================================================
+
+A. AUTHENTICATION & MULTI-TENANCY
+  ─────────────────────────────────────────────────────────────────────────────
+  [F-AUTH-01] JWT Authentication
+      - Login via email/password; bcrypt hash comparison
+      - JWT claims include: id, role, vendor_id, client_id (multi-tenant scope)
+      - 24-hour token expiry; token stored in localStorage
+
+  [F-AUTH-02] Vendor Self-Registration (Signup)
+      - New vendor org registration from the public Landing Page
+      - Creates a vendors record + initial VENDOR_ADMIN user in one transaction
+      - Auto-login after successful registration
+
+  [F-AUTH-03] Multi-Tenant Data Isolation
+      - All API handlers scope queries by vendor_id from JWT claims
+      - Clients, projects, and users are strictly isolated per vendor
+      - CLIENT role only sees their own projects
+
+B. WORKFORCE MANAGEMENT
+  ─────────────────────────────────────────────────────────────────────────────
+  [F-WORK-01] Contractor Roster (Workforce)
+      - Full CRUD for employees: name, email, skills, availability, status
+      - Skill tags displayed as comma-separated labels
+      - Availability: FULL_TIME / PART_TIME / UNAVAILABLE
+
+  [F-WORK-02] Smart Bench & Skill Matcher Engine (GET /api/match)
+      - Scoring algorithm: skill match (0–100%) + available hours calculation
+      - Ranks candidates: recommended (capacity OK) vs under-capacity (warning)
+      - Inputs: skills=React,Node.js&requiredHours=20&vendor_id=1
+      - Supports vendor-scoped query, partial skill matching (e.g. "node" → "Node.js")
+      - Returns: match_score, utilization_pct, current_assignments, payout_currency
+
+  [F-WORK-03] Multi-Currency Contractor Support
+      - Per-contractor payout_currency field (USD, EUR, GBP, INR, AUD, CAD, etc.)
+      - tax_region and tax_exempt flags per contractor
+      - Payroll calculation converts project billing_currency → employee payout_currency
+
+C. PROJECT & CLIENT MANAGEMENT
+  ─────────────────────────────────────────────────────────────────────────────
+  [F-PROJ-01] Client CRUD
+      - Manage client orgs: contact_person, contact_email, industry, address
+      - preferred_currency per client
+      - Project count and total budget aggregated via JOIN
+
+  [F-PROJ-02] Project Management with Auto-Completion
+      - Projects have a billing_currency field
+      - When ALL milestones reach APPROVED/COMPLETED, the project status and all
+        its contractor assignments are automatically marked COMPLETED
+      - Status flow: PENDING → ACTIVE → COMPLETED / REJECTED
+
+  [F-PROJ-03] Client Project Proposal Portal
+      - CLIENT role can submit project proposals (name, description, budget, dates)
+      - Client can define inline milestones during project creation
+      - Client selects a Project Manager from the vendor's PM pool during submission
+      - Clients can view their project status and invoice history
+
+D. ASSIGNMENTS & RATE VERSIONING
+  ─────────────────────────────────────────────────────────────────────────────
+  [F-ASSIGN-01] Assignment CRUD
+      - Link contractor to project with role, dates, billing_rate, weekly_hour_limit
+      - Per-assignment optional fixed_exchange_rate to lock FX at contract time
+
+  [F-ASSIGN-02] Assignment Rate History (Versioning)
+      - assignment_rate_history table stores historical rate changes per assignment
+      - Tracks effective_from / effective_to dates for each rate
+      - Invoice validation and payroll generation reference this table to ensure
+        the correct rate is applied for the specific billing period
+
+  [F-ASSIGN-03] Live FX Rate Preview (GET /api/exchange-rate)
+      - Assignments UI shows real-time currency conversion preview before rate is locked
+      - Server-side proxy keeps the ExchangeRate-API key secure (never exposed to browser)
+      - Supports: USD, EUR, GBP, INR, AUD, CAD, SGD, JPY, AED, MYR
+
+E. TIMESHEETS
+  ─────────────────────────────────────────────────────────────────────────────
+  [F-TS-01] Weekly Timesheet Logbook (CRUD)
+      - Contractors submit Mon–Sun daily entries (hours + description per day)
+      - Each timesheet now supports milestone_id to tag hours to a specific deliverable
+      - Status flow: DRAFT → SUBMITTED → APPROVED / REJECTED
+
+  [F-TS-02] Milestone-Tagged Timesheets
+      - Timesheet creation/edit modal includes "Tag to Milestone" dropdown
+      - Dropdown is filtered to milestones belonging to the selected assignment's project
+      - PM Timesheets view displays the milestone name alongside the project name
+      - Timer stop logic creates separate timesheets per milestone (no cross-milestone mixing)
+
+  [F-TS-03] Timesheet State Machine
+      - isValidTransition() enforces legal status transitions
+      - All transitions logged to audit_log with actor, previous state, new state
+      - Approved timesheets trigger email notifications to the contractor
+
+F. REAL-TIME TIMER
+  ─────────────────────────────────────────────────────────────────────────────
+  [F-TIMER-01] Live Time Tracker (TimerWidget)
+      - Per-contractor real-time timer: START / PAUSE / RESUME / STOP
+      - Heartbeat (PATCH /api/timer/heartbeat) keeps session alive every 30 seconds
+      - Midnight Auto-Stop: BullMQ cron worker auto-stops running sessions at midnight
+        and sends the contractor an email notification
+
+  [F-TIMER-02] Automatic Timesheet Entry Writing
+      - When a timer is stopped, hours are auto-written to the correct timesheet entry
+      - Finds or creates the weekly timesheet for the correct assignment + milestone + week
+      - Updates total_hours on the parent timesheet via a SUM aggregate query
+
+  [F-TIMER-03] Timer Session to Timesheet Grouping
+      - Timer sessions track milestone_id independently
+      - On STOP, the system matches the session to a timesheet with the same
+        assignment_id + employee_id + week_start + milestone_id combination
+      - Prevents timer sessions for different milestones from being merged into one record
+
+G. MILESTONES & DELIVERABLES
+  ─────────────────────────────────────────────────────────────────────────────
+  [F-MS-01] Milestone Lifecycle
+      - PM creates milestones per project with name, description, amount, due_date
+      - Status flow: PENDING → IN_PROGRESS → SUBMITTED → APPROVED / REJECTED
+
+  [F-MS-02] Evidence Submission by Contractor
+      - Contractors can submit a URL (GitHub PR, Google Doc, etc.) as evidence
+      - Submission action changes status to SUBMITTED and notifies the PM
+      - Re-submission supported when status is REJECTED
+
+  [F-MS-03] PM Approval & Payroll Trigger
+      - PM approval triggers automatic contractor payroll calculation
+      - Payroll is idempotency-protected (won't double-calculate for same milestone+assignment)
+      - After all milestones are approved, project + assignments auto-complete
+
+  [F-MS-04] Employee-Scoped Milestone Display
+      - Employee Milestones page only displays milestones for projects the contractor
+        is actively assigned to (filtered by assignment.project_id match)
+
+  [F-MS-05] Budget Warning on Payroll Margin
+      - When payroll status reaches PROCESSED or PAID, the system evaluates
+        total payroll cost vs milestone amount
+      - If margin exceeds 85%, a budget warning email is sent to the VENDOR_ADMIN
+
+H. INVOICING
+  ─────────────────────────────────────────────────────────────────────────────
+  [F-INV-01] Invoice Pre-Submission Validation Engine (7 Rules)
+      - Rule 1: Active Assignment Exists — project has at least one assignment
+      - Rule 2: Assignment Active Status — no terminated/inactive assignments billed
+      - Rule 3: Approved Hours Exist — all timesheet hours are PM-approved
+      - Rule 4: Correct Billing Rate — rates match assignment_rate_history records
+      - Rule 5: Approved Milestones — all billed milestones have PM approval
+      - Rule 6: No Duplicate Billing — no previously invoiced timesheets/milestones
+      - Rule 7: Calculation Accuracy — subtotal + 18% tax + total verified mathematically
+      All 7 must pass before an invoice can be generated.
+
+  [F-INV-02] Background Invoice Generation (BullMQ Worker)
+      - Invoice generation runs asynchronously via a BullMQ job queue (Redis-backed)
+      - invoiceWorker processes GENERATE_INVOICE jobs: fetches data, validates,
+        generates PDF, saves to DB, and emails the client
+      - Progress tracked from 20% → 100% in job metadata
+
+  [F-INV-03] Invoice Status State Machine
+      - Status flow: DRAFT → SENT → APPROVED (by client) → PAID
+      - On PAID status, contractor payrolls are auto-generated for all invoice items
+      - Milestone-only invoices (timesheets excluded from client invoices by design)
+
+  [F-INV-04] Client Invoice Review
+      - CLIENT role has a dedicated invoice review portal
+      - Can view line items per invoice and take payment action
+
+I. PAYROLL
+  ─────────────────────────────────────────────────────────────────────────────
+  [F-PAY-01] Milestone-Driven Contractor Payroll
+      - Payroll is generated when a milestone is approved
+      - Computes: total approved/submitted timesheet hours × versioned billing rate
+      - Idempotency key: payroll_ms_{milestone_id}_assign_{assignment_id}
+
+  [F-PAY-02] Multi-Currency Payroll with FX Conversion
+      - Project billing currency (e.g. USD) is compared to contractor payout currency
+      - If different, uses assignment's fixed_exchange_rate or falls back to live rate
+      - Net pay = gross_pay_in_project_currency × exchange_rate
+      - Tax withholding computed based on tax_region and tax_exempt status
+
+  [F-PAY-03] Payment-Gated Payroll Release
+      - Contractor payroll records remain in PENDING state until the client invoice is PAID
+      - Only after the client pays does the system process and release contractor disbursements
+      - This ensures financial alignment: vendor receivables → contractor payouts
+
+J. NOTIFICATIONS & AUDIT
+  ─────────────────────────────────────────────────────────────────────────────
+  [F-NOTIF-01] In-App Notification Inbox
+      - Per-user notification list (timesheet status, milestone events, invoice updates)
+      - Mark-all-read action; unread count badge in header
+
+  [F-NOTIF-02] Async Email Notification System (BullMQ)
+      - All emails are queued via emailQueue.js and processed by emailWorker.js
+      - SMTP delivery via Nodemailer (Gmail-compatible, port 465)
+      - Notification types: timesheet approved/rejected, timesheet deadline reminder,
+        milestone submitted/approved/rejected, budget margin warning, timer auto-stopped
+
+  [F-AUDIT-01] Immutable Audit Trail
+      - logAudit() records every state change: entity_type, entity_id, actor_id,
+        action, previous_status, new_status, metadata, vendor_id
+      - Audit log is vendor-scoped and read-only via GET /api/audit-log
+      - Covers: timesheets, milestones, invoices, payrolls, assignments
+
+K. RELIABILITY & PERFORMANCE
+  ─────────────────────────────────────────────────────────────────────────────
+  [F-INFRA-01] Database Rate Limiter (Token Bucket)
+      - All DB calls are rate-limited via a Token Bucket algorithm
+      - Default: 50 QPS (configurable via MAX_DB_QPS environment variable)
+      - Excess queries are queued (not rejected) and processed as tokens refill
+      - Prevents connection exhaustion and DB CPU spikes during traffic bursts
+
+  [F-INFRA-02] In-Memory Fallback Database
+      - Complete in-memory data store mirrors the full Neon schema
+      - Activated automatically when DATABASE_URL is not configured or unreachable
+      - Supports all CRUD operations for offline development and demo environments
+      - Pre-seeded with realistic demo data (12 users, projects, timesheets, milestones)
+
+  [F-INFRA-03] Exchange Rate Caching
+      - Live FX rates are fetched from ExchangeRate-API v6 and cached in-memory for 1 hour
+      - Falls back to a hardcoded approximation table (10 currencies) if API is unavailable
+      - Cache can be manually invalidated via clearRateCache() for admin overrides
+
+  [F-INFRA-04] BullMQ Resilient Queue Workers
+      - Redis connection uses exponential retry backoff (max 15s between retries)
+      - Workers are fault-tolerant: errors are caught and logged without crashing the process
+      - Separate queues for emails, invoice generation, and timer auto-stop jobs
+
+================================================================================
+V. STATE MACHINES (isValidTransition)
+================================================================================
+
+  TIMESHEET:
+    DRAFT → SUBMITTED
+    SUBMITTED → APPROVED
+    SUBMITTED → REJECTED
+    REJECTED → SUBMITTED   (re-submission after correction)
+    APPROVED → (terminal)
+
+  MILESTONE:
+    PENDING → IN_PROGRESS
+    IN_PROGRESS → SUBMITTED
+    SUBMITTED → APPROVED
+    SUBMITTED → REJECTED
+    REJECTED → SUBMITTED   (re-submission with new evidence)
+    APPROVED → COMPLETED
+
+  INVOICE:
+    DRAFT → SENT
+    SENT → APPROVED
+    SENT → REJECTED
+    APPROVED → PAID
+    PAID → (terminal)
+
+  PAYROLL:
+    PENDING → PROCESSED
+    PROCESSED → PAID
+    PAID → (terminal)
+
+================================================================================
+VI. DESIGN PRINCIPLES
+================================================================================
+
+  1. MULTI-TENANT BY DESIGN
+     Every entity is scoped to a vendor_id. API handlers enforce tenant isolation
+     via JWT claims. No cross-tenant data leakage is possible at the query level.
+
+  2. PAYMENT-GATED PAYROLL
+     Contractor payrolls are never released before client invoices are settled.
+     This creates a reliable financial chain: Client pays → Vendor receives →
+     Contractor is disbursed.
+
+  3. MILESTONE-AS-BILLING-UNIT
+     The system treats milestones as the primary billing unit for client invoices.
+     Timesheets are an internal vendor-to-contractor concern and are excluded from
+     client-facing invoices by design.
+
+  4. IMMUTABLE AUDIT TRAIL
+     Every status transition is logged with actor, timestamp, and metadata.
+     Audit records are append-only and vendor-scoped, suitable for compliance.
+
+  5. STATE MACHINE ENFORCEMENT
+     All entity transitions (timesheets, milestones, invoices, payrolls) go through
+     isValidTransition() to prevent illegal state jumps and race conditions.
+
+  6. IDEMPOTENT OPERATIONS
+     Payroll generation uses idempotency keys to prevent duplicate records even
+     if the same webhook or job is processed multiple times.
+
+  7. GRACEFUL DEGRADATION
+     The system is designed to never fully crash due to external service failures.
+     DB unavailability → in-memory fallback. FX API failure → hardcoded rate table.
+     Redis failure → queue warnings without blocking the main API response.
+
+  8. RATE LIMITING AT THE DB LAYER
+     A Token Bucket rate limiter sits at the lowest shared point (db.js query wrapper),
+     protecting the database from overload regardless of which API route triggers it.
+     Excess requests are queued and processed smoothly, not rejected.
+
+  9. BACKGROUND PROCESSING FOR HEAVY OPERATIONS
+     Invoice generation and email delivery are asynchronous, offloaded to BullMQ
+     workers. API endpoints return immediately, keeping the UI responsive.
+
+  10. VERSIONED RATE CARDS
+      Billing rates are never mutated in-place. Historical rates are preserved in
+      assignment_rate_history with date ranges, ensuring that past invoices and
+      payrolls always reference the contractually correct rate.
+
+  11. UI COMPONENT SYSTEM
+      A centralized design system (UI.js) provides: Button, Card, Table, Modal,
+      Badge, StatusBadge, Alert, LoadingSpinner, Textarea, Input. All UI is
+      consistent, accessible, and reusable across all role portals.
+
+  12. ROLE-SCOPED DATA FILTERING AT THE VIEW LAYER
+      Even when the API returns all data, the React view layer applies role-specific
+      filters (e.g., employee only sees milestones for their assigned projects,
+      PM only sees timesheets for their projects). This provides defence-in-depth.
+
+================================================================================
+VII. API ENDPOINTS SUMMARY
+================================================================================
+
+  POST   /api/auth/login             — Login, get JWT
+  POST   /api/auth/signup            — Register new vendor org + admin
+  GET    /api/employees              — List all users (filterable by role)
+  POST   /api/employees              — Create contractor/PM
+  PUT    /api/employees/:id          — Update user profile
+  GET    /api/clients                — List clients (vendor-scoped)
+  POST   /api/clients                — Create new client
+  PUT    /api/clients/:id            — Update client
+  DELETE /api/clients/:id            — Delete client
+  GET    /api/projects               — List projects
+  POST   /api/projects               — Create project
+  PUT    /api/projects/:id           — Update project
+  GET    /api/assignments            — List assignments
+  POST   /api/assignments            — Create assignment
+  PUT    /api/assignments/:id        — Update assignment
+  GET    /api/timesheets             — List timesheets (with milestone_name)
+  POST   /api/timesheets             — Create timesheet (with milestone_id)
+  PUT    /api/timesheets/:id         — Update timesheet (with milestone_id)
+  POST   /api/timesheets/:id/approve — PM approves timesheet
+  POST   /api/timesheets/:id/reject  — PM rejects timesheet (with reason)
+  GET    /api/milestones             — List milestones
+  POST   /api/milestones             — Create milestone
+  PUT    /api/milestones/:id         — Update milestone (SUBMIT/APPROVE/REJECT)
+  GET    /api/invoices               — List invoices
+  POST   /api/invoices               — Create/generate invoice (via queue)
+  PUT    /api/invoices/:id           — Update invoice status
+  GET    /api/payrolls               — List contractor payrolls
+  PUT    /api/payrolls/:id           — Update payroll status
+  GET    /api/notifications          — List notifications for user
+  PUT    /api/notifications/read     — Mark all as read
+  GET    /api/timer/active           — Get current running timer session
+  POST   /api/timer/start            — Start a new timer session
+  POST   /api/timer/pause            — Pause running timer
+  POST   /api/timer/resume           — Resume paused timer
+  POST   /api/timer/stop             — Stop timer + auto-write timesheet entry
+  PATCH  /api/timer/heartbeat        — Keep timer session alive
+  GET    /api/match                  — Smart bench & skill matcher
+  GET    /api/exchange-rate          — Live FX rate lookup (from/to params)
+  GET    /api/audit-log              — Vendor-scoped audit trail
+
+================================================================================
+END OF DOCUMENT
+================================================================================

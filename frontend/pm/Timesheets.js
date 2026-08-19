@@ -55,7 +55,7 @@ export default function PMTimesheets({ timesheets = [], assignments = [], onRefr
       </div>
 
       <Card>
-        <Table headers={['TS ID', 'Contractor', 'Project', 'Week Start', 'Total Hours', 'Weekly Cap', 'Status', 'Actions']}>
+        <Table headers={['TS ID', 'Contractor', 'Project & Milestone', 'Week Start', 'Total Hours', 'Weekly Cap', 'Status', 'Actions']}>
           {timesheets.map(t => {
             const ass = assignments.find(a => a.id === t.assignment_id);
             const limit = ass ? parseInt(ass.weekly_hour_limit, 10) : 40;
@@ -65,7 +65,10 @@ export default function PMTimesheets({ timesheets = [], assignments = [], onRefr
               <tr key={t.id} className="hover:bg-slate-50 transition-colors">
                 <td className="px-6 py-4 font-extrabold text-slate-900">TS #{t.id}</td>
                 <td className="px-6 py-4 font-bold text-slate-900">{t.employee_name}</td>
-                <td className="px-6 py-4 font-semibold text-slate-700">{t.project_name}</td>
+                <td className="px-6 py-4 font-semibold text-slate-700">
+                  {t.project_name}
+                  <div className="text-xs text-slate-500 font-normal mt-0.5">📌 {t.milestone_name || 'No Milestone'}</div>
+                </td>
                 <td className="px-6 py-4 text-xs text-slate-500">{t.week_start}</td>
                 <td className="px-6 py-4 font-extrabold text-sky-700">
                   {t.total_hours} hrs

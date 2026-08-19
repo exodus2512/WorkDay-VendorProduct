@@ -1,3 +1,24 @@
+/**
+ * --------------------------------------------------------------------------------
+ * EMPLOYEES / WORKFORCE API HANDLER (/api/employees)
+ * --------------------------------------------------------------------------------
+ * Core Logic & Workflow:
+ *  - Manages workforce roster entries (Contractors/EMPLOYEE, Project Managers/PROJECT_MANAGER).
+ *  - Stores skill tags, weekly capacity hours, availability status (FULL_TIME, PART_TIME, UNAVAILABLE),
+ *    and multi-currency payroll parameters (`payout_currency`, `tax_region`, `tax_exempt`).
+ *  - Automatically hashes user passwords with `bcryptjs` before persisting to database.
+ *
+ * Supported Operations:
+ *  - GET /api/employees
+ *      Returns user roster filtered by `role` (e.g. EMPLOYEE, PROJECT_MANAGER) or `vendor_id`.
+ *  - GET /api/employees/:id
+ *      Returns profile details for a single employee (excluding password hash).
+ *  - POST /api/employees
+ *      Creates a new contractor or PM profile under the vendor.
+ *  - PUT /api/employees/:id
+ *      Updates employee profile (name, email, skills, availability, tax settings, status).
+ * --------------------------------------------------------------------------------
+ */
 import { query } from '../db/db.js';
 import bcrypt from 'bcryptjs';
 

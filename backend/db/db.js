@@ -1,4 +1,5 @@
 import { neon } from '@neondatabase/serverless';
+import { dbRateLimiter } from './rateLimiter.js';
 
 // Singleton DB runner supporting Neon Serverless & local memory fallback
 let neonSql = null;
@@ -114,6 +115,9 @@ const memoryDb = {
 
 // Database Query Wrapper
 export async function query(queryString, params = []) {
+  // Wait for rate limiter to grant permission
+  await dbRateLimiter.acquire();
+
   const sql = getNeonSql();
   if (sql) {
     try {

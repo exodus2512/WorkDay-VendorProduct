@@ -1,3 +1,18 @@
+/**
+ * --------------------------------------------------------------------------------
+ * AUDIT LOG API HANDLER (/api/audit-log)
+ * --------------------------------------------------------------------------------
+ * Core Logic & Workflow:
+ *  - Provides a read-only compliance view of all state transitions and system actions.
+ *  - Enforces strict multi-tenant isolation using `vendor_id` from JWT claims.
+ *  - Joins `audit_log` records with `users` to display human-readable actor names and emails.
+ *
+ * Supported Operations:
+ *  - GET /api/audit-log
+ *      Returns audit entries filtered by vendor. Optional filters: `entity_type` (e.g. TIMESHEET,
+ *      MILESTONE, INVOICE), `entity_id`. Ordered chronologically descending.
+ * --------------------------------------------------------------------------------
+ */
 import { query } from '../db/db.js';
 
 export async function handleAuditLog(req, queryParams) {

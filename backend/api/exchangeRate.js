@@ -1,12 +1,21 @@
+/**
+ * --------------------------------------------------------------------------------
+ * LIVE EXCHANGE RATE PROXY HANDLER (/api/exchange-rate)
+ * --------------------------------------------------------------------------------
+ * Core Logic & Workflow:
+ *  - Serves as a secure server-side proxy for live foreign exchange rates.
+ *  - Keeps third-party ExchangeRate-API keys hidden from client browsers.
+ *  - Integrates with `exchangeRateService` which caches live conversion rates in-memory for 1 hour.
+ *  - Supports 10 core international currencies: USD, EUR, GBP, INR, AUD, CAD, SGD, JPY, AED, MYR.
+ *  - Used by Assignments & Client Invoices UIs for real-time FX previews before locking contract rates.
+ *
+ * Supported Operations:
+ *  - GET /api/exchange-rate?from=USD&to=INR
+ *      Returns exact conversion rate, source indicator (LIVE/CACHE/FALLBACK), and formatted display text.
+ * --------------------------------------------------------------------------------
+ */
 import { getExchangeRate } from '../services/exchangeRateService.js';
 
-/**
- * GET /api/exchange-rate?from=USD&to=INR
- *
- * Thin proxy that keeps the OpenExchangeRates API key server-side.
- * Returns the live (or fallback) conversion rate between two currencies.
- * Used by the Assignments UI to show a live rate preview before locking.
- */
 export async function handleExchangeRate(req, pathSegments, queryParams) {
   if (req.method !== 'GET') {
     return { status: 405, body: { error: 'Method Not Allowed' } };

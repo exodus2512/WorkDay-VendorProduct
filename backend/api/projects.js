@@ -1,3 +1,26 @@
+/**
+ * --------------------------------------------------------------------------------
+ * PROJECTS API HANDLER (/api/projects)
+ * --------------------------------------------------------------------------------
+ * Core Logic & Workflow:
+ *  - Controls client project accounts, financial budgets, assigned PMs, and `billing_currency`.
+ *  - Supports client proposal submissions (where a client creates a project proposal with inline milestones
+ *    and selects a Project Manager from the vendor's PM pool).
+ *  - Project Status Flow: PENDING -> ACTIVE -> COMPLETED / REJECTED.
+ *  - Enforces vendor multi-tenant scoping and client-user specific project filters.
+ *
+ * Supported Operations:
+ *  - GET /api/projects
+ *      Lists projects enriched with `pm_name`, `vendor_name`, and `client_org_name`.
+ *      Filterable by `vendor_id`, `pm_id`, `client_user_id`, `client_name`, `status`.
+ *  - GET /api/projects/:id
+ *      Returns details for a single project by ID.
+ *  - POST /api/projects
+ *      Creates a new project record under a vendor/client org with budget and currency settings.
+ *  - PUT /api/projects/:id
+ *      Updates project metadata, budget, date range, assigned PM, or status.
+ * --------------------------------------------------------------------------------
+ */
 import { query } from '../db/db.js';
 
 // Reusable JOIN query — returns pm_name and vendor/client info alongside every project row

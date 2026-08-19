@@ -17,6 +17,7 @@ export default function EmployeeTimesheets({ timesheets = [], assignments = [], 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTs, setEditingTs] = useState(null);
   const [selectedAssignmentId, setSelectedAssignmentId] = useState(assignments.length > 0 ? assignments[0].id : '');
+  const [selectedMilestoneId, setSelectedMilestoneId] = useState('');
   const [weekStart, setWeekStart] = useState('2026-08-17');
   const [workDescription, setWorkDescription] = useState('');
 
@@ -40,6 +41,7 @@ export default function EmployeeTimesheets({ timesheets = [], assignments = [], 
   const handleOpenNew = () => {
     setEditingTs(null);
     setWorkDescription('');
+    setSelectedMilestoneId('');
     setDailyEntries([
       { day: 'Mon', hours: '8', desc: 'Feature development' },
       { day: 'Tue', hours: '8', desc: 'Feature development' },
@@ -55,6 +57,7 @@ export default function EmployeeTimesheets({ timesheets = [], assignments = [], 
   const handleOpenEdit = (ts) => {
     setEditingTs(ts);
     setSelectedAssignmentId(ts.assignment_id);
+    setSelectedMilestoneId(ts.milestone_id || '');
     setWeekStart(ts.week_start);
     setWorkDescription(ts.work_description || '');
 
@@ -104,7 +107,8 @@ export default function EmployeeTimesheets({ timesheets = [], assignments = [], 
             work_description: workDescription,
             status: statusTarget,
             entries: formattedEntries,
-            rejection_reason: null
+            rejection_reason: null,
+            milestone_id: selectedMilestoneId ? parseInt(selectedMilestoneId, 10) : null
           })
         });
       } else {
@@ -118,7 +122,8 @@ export default function EmployeeTimesheets({ timesheets = [], assignments = [], 
             total_hours: totalHrs,
             work_description: workDescription,
             status: statusTarget,
-            entries: formattedEntries
+            entries: formattedEntries,
+            milestone_id: selectedMilestoneId ? parseInt(selectedMilestoneId, 10) : null
           })
         });
       }
@@ -165,11 +170,14 @@ export default function EmployeeTimesheets({ timesheets = [], assignments = [], 
       </div>
 
       <Card>
-        <Table headers={['TS ID', 'Project', 'Week Start', 'Logged Hours', 'Status', 'Feedback / Rejection', 'Actions']}>
+        <Table headers={['TS ID', 'Project & Milestone', 'Week Start', 'Logged Hours', 'Status', 'Feedback / Rejection', 'Actions']}>
           {timesheets.map(t => (
             <tr key={t.id} className="hover:bg-slate-50 transition-colors">
               <td className="px-6 py-4 font-extrabold text-slate-900">TS #{t.id}</td>
-              <td className="px-6 py-4 font-semibold text-slate-700">{t.project_name}</td>
+              <td className="px-6 py-4 font-semibold text-slate-700">
+                {t.project_name}
+                <div className="text-xs text-slate-500 font-normal mt-0.5">📌 {t.milestone_name || 'No Milestone'}</div>
+              </td>
               <td className="px-6 py-4 text-xs font-medium text-slate-600">{t.week_start}</td>
               <td className="px-6 py-4 font-bold text-sky-700">{t.total_hours} hrs</td>
               <td className="px-6 py-4"><StatusBadge status={t.status} /></td>
@@ -214,6 +222,24 @@ export default function EmployeeTimesheets({ timesheets = [], assignments = [], 
               >
                 {assignments.map(a => (
                   <option key={a.id} value={a.id}>{a.project_name} ({a.role})</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Tag to Milestone</label>
+              <select
+                value={selectedMilestoneId}
+                onChange={e => setSelectedMilestoneId(e.target.value)}
+                className="w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-lg"
+              >
+                <option value="">— No milestone tag —</option>
+                {milestones
+                  .filter(m => {
+                    const selAssignment = assignments.find(a => String(a.id) === String(selectedAssignmentId));
+                    return selAssignment && String(m.project_id) === String(selAssignment.project_id);
+                  })
+                  .map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
             </div>

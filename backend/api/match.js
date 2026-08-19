@@ -1,19 +1,23 @@
+/**
+ * --------------------------------------------------------------------------------
+ * SMART BENCH & SKILL MATCHER ENGINE (/api/match)
+ * --------------------------------------------------------------------------------
+ * Core Logic & Scoring Algorithm:
+ *  1. Fetches all active workforce contractors (`EMPLOYEE`) scoped by `vendor_id`.
+ *  2. Aggregates active assignment weekly hour limits to determine allocated workload.
+ *  3. Calculates available capacity: `available_hours = weekly_capacity_hours - allocated_hours`.
+ *  4. Evaluates requested skill tags against contractor skills (case-insensitive substring match).
+ *  5. Calculates percentage match score: `match_score = (matched_skills / requested_skills) * 100`.
+ *  6. Categorizes candidates: Recommended (capacity >= required) vs Under-Capacity (flagged warning).
+ *  7. Sorts candidates by `match_score DESC`, then `available_hours DESC`.
+ *
+ * Supported Operations:
+ *  - GET /api/match?skills=React,Node.js&requiredHours=20&vendor_id=1
+ *      Returns ranked contractor recommendations with utilization metrics and active assignment list.
+ * --------------------------------------------------------------------------------
+ */
 import { query } from '../db/db.js';
 
-/**
- * Smart Bench & Skill Matcher Engine
- *
- * GET /api/match?skills=React,Node.js&requiredHours=20&vendor_id=1
- *
- * Scoring algorithm:
- *  1. Fetch every EMPLOYEE who is not UNAVAILABLE.
- *  2. Sum their ACTIVE assignment weekly_hour_limit to get "allocated hours".
- *  3. Compute available_hours = weekly_capacity_hours - allocated_hours.
- *  4. Filter out anyone with available_hours < requiredHours (or flag them with a warning).
- *  5. Compare contractor skills (comma-separated) against requested skills.
- *     match_score = matched_skills / total_requested_skills * 100 (0–100).
- *  6. Sort: primary → match_score DESC, secondary → available_hours DESC.
- */
 export async function handleMatch(req, pathSegments, queryParams) {
   if (req.method !== 'GET') {
     return { status: 405, body: { error: 'Method Not Allowed' } };

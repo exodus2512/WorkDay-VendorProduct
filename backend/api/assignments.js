@@ -1,3 +1,26 @@
+/**
+ * --------------------------------------------------------------------------------
+ * ASSIGNMENTS API HANDLER (/api/assignments)
+ * --------------------------------------------------------------------------------
+ * Core Logic & Workflow:
+ *  - Manages the mapping between contractors (EMPLOYEE) and client projects.
+ *  - Defines contractual role, start/end dates, hourly billing rate, weekly hour limits,
+ *    and optional locked fixed exchange rates for multi-currency payroll.
+ *  - Maintains historical versioning in `assignment_rate_history` whenever billing rates are updated.
+ *
+ * Supported Operations:
+ *  - GET /api/assignments
+ *      Returns all assignments enriched with project, client, employee, and PM details.
+ *      Supports query filters: `employee_id`, `project_id`, `pm_id`, `status`.
+ *  - GET /api/assignments/:id
+ *      Returns a single assignment by ID.
+ *  - POST /api/assignments
+ *      Creates a new contractor assignment. Automatically initializes a record in `assignment_rate_history`.
+ *  - PUT /api/assignments/:id
+ *      Updates assignment role, dates, weekly limit, status, or billing rate.
+ *      If billing rate changes, inserts a new versioned entry in `assignment_rate_history`.
+ * --------------------------------------------------------------------------------
+ */
 import { query } from '../db/db.js';
 
 export async function handleAssignments(req, pathSegments, queryParams) {

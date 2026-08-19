@@ -279,7 +279,12 @@ export default function Home() {
                     <EmployeeTimesheets timesheets={data.timesheets.filter(t => t.employee_id === currentUser.id)} assignments={data.assignments.filter(a => a.employee_id === currentUser.id)} milestones={data.milestones || []} empUser={currentUser} onRefresh={fetchData} />
                   )}
                   {activeSection === 'milestones' && (
-                    <EmployeeMilestones milestones={data.milestones} assignments={data.assignments.filter(a => a.employee_id === currentUser.id)} empUser={currentUser} onRefresh={fetchData} />
+                    <EmployeeMilestones 
+                      milestones={data.milestones.filter(m => data.assignments.some(a => a.employee_id === currentUser.id && String(a.project_id) === String(m.project_id)))} 
+                      assignments={data.assignments.filter(a => a.employee_id === currentUser.id)} 
+                      empUser={currentUser} 
+                      onRefresh={fetchData} 
+                    />
                   )}
                   {activeSection === 'payrolls' && (
                     <ContractorPayrolls payrolls={(data.payrolls || []).filter(p => p.employee_id === currentUser.id)} />

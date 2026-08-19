@@ -1,3 +1,22 @@
+/**
+ * --------------------------------------------------------------------------------
+ * AUTHENTICATION & REGISTRATION HANDLER (/api/auth)
+ * --------------------------------------------------------------------------------
+ * Core Logic & Workflow:
+ *  - Handles user authentication, token issuance, and new vendor onboarding.
+ *  - Issues JWTs with multi-tenant scopes (`id`, `name`, `email`, `role`, `vendor_id`, `client_id`).
+ *  - Supports bcrypt hashed passwords with fallback to legacy plain-text during migration.
+ *
+ * Endpoints Handled:
+ *  - POST /api/auth/login
+ *      Authenticates user credentials and returns a 24-hour signed JWT along with safe user info.
+ *  - POST /api/auth/signup
+ *      Vendor registration flow. Creates a new `vendors` org record and initial `VENDOR_ADMIN`
+ *      user in a single transaction, then issues a session token.
+ *  - GET /api/auth/me
+ *      Validates Bearer JWT header and returns current authenticated user session data.
+ * --------------------------------------------------------------------------------
+ */
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { query } from '../db/db.js';

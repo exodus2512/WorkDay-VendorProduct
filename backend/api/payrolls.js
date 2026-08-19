@@ -1,3 +1,25 @@
+/**
+ * --------------------------------------------------------------------------------
+ * CONTRACTOR PAYROLLS API HANDLER (/api/payrolls)
+ * --------------------------------------------------------------------------------
+ * Core Logic & Workflow:
+ *  - Manages internal vendor-to-contractor payroll disbursements generated upon milestone approval.
+ *  - Stores gross pay in project currency, exchange rate used, local payout currency, tax region rates,
+ *    and net local pay for each contractor.
+ *  - Enforces `isValidTransition('PAYROLL', ...)` state machine rules: `PENDING` -> `PROCESSED` -> `PAID`.
+ *  - Evaluates payroll cost against milestone revenue; if total contractor payouts exceed 85% of milestone
+ *    value, dispatches an automated budget margin warning email to the `VENDOR_ADMIN`.
+ *
+ * Supported Operations:
+ *  - GET /api/payrolls
+ *      Returns all contractor payroll records enriched with employee, project, client, and milestone names.
+ *      Supports query filters: `employee_id`, `project_id`, `milestone_id`, `status`.
+ *  - GET /api/payrolls/:id
+ *      Returns a single payroll record by ID.
+ *  - PUT /api/payrolls/:id
+ *      Updates payroll disbursement status (`PROCESSED` -> `PAID`).
+ * --------------------------------------------------------------------------------
+ */
 import { query } from '../db/db.js';
 import { logAudit } from '../utils/audit.js';
 import { isValidTransition } from '../utils/stateMachine.js';

@@ -304,6 +304,7 @@ CREATE TABLE timesheets (
   id SERIAL PRIMARY KEY,
   assignment_id INT REFERENCES assignments(id) ON DELETE CASCADE,
   employee_id INT REFERENCES users(id) ON DELETE CASCADE,
+  milestone_id INT REFERENCES milestones(id) ON DELETE SET NULL,
   week_start DATE NOT NULL,
   total_hours NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
   work_description TEXT,
